@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../utils/apiResponse");
-const { signup, login } = require("../services/authService");
+const { signup, login, loginWithGoogle } = require("../services/authService");
 
 const signupController = async (req, res) => {
   const result = await signup(req.body || {});
@@ -11,7 +11,13 @@ const loginController = async (req, res) => {
   return sendSuccess(res, result, "Login successful", 200);
 };
 
+const googleLoginController = async (req, res) => {
+  const result = await loginWithGoogle(req.body || {});
+  return sendSuccess(res, result, "Google login successful", 200);
+};
+
 module.exports = {
   signupController,
-  loginController
+  loginController,
+  googleLoginController
 };

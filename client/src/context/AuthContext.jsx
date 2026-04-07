@@ -1,11 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
+import { googleLogout } from '@react-oauth/google'
 import { AuthContext } from './AuthContextObject'
 import { API_BASE_URL } from '../lib/api'
 
 const AUTH_STORAGE_KEY = 'fairsight-auth'
-const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || 'demo@fairscan.ai'
-const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || 'demo123456'
-const DEMO_NAME = import.meta.env.VITE_DEMO_NAME || 'FairScan Demo'
 
 const getInitialAuthState = () => {
   const stored = localStorage.getItem(AUTH_STORAGE_KEY)
@@ -67,21 +65,26 @@ export function AuthProvider({ children }) {
     return payload.data
   }, [])
 
-  const logout = useCallback(() => {
-    persist(null, null)
+  const oauthLogin = useCallback(async ({ idToken }) => {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    })
+    const payload = await response.json()
+    if (!response.ok) {
+      throw new Error(payload?.message || 'Google login failed')
+    }
+    persist(payload.data?.token, payload.data?.user)
+    return payload.data
   }, [])
 
-  const continueAsDemoUser = useCallback(async () => {
-    try {
-      return await login({ email: DEMO_EMAIL, password: DEMO_PASSWORD })
-    } catch {
-      try {
-        return await signup({ name: DEMO_NAME, email: DEMO_EMAIL, password: DEMO_PASSWORD })
-      } catch (signupError) {
-        throw new Error(signupError?.message || 'Demo user is currently unavailable')
-      }
+  const logout = useCallback(() => {
+    if (user?.authProvider === 'google') {
+      googleLogout()
     }
-  }, [login, signup])
+    persist(null, null)
+  }, [user?.authProvider])
 
   const value = useMemo(
     () => ({
@@ -90,10 +93,10 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token),
       login,
       signup,
-      continueAsDemoUser,
+      oauthLogin,
       logout
     }),
-    [token, user, login, signup, continueAsDemoUser, logout]
+    [token, user, login, signup, oauthLogin, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

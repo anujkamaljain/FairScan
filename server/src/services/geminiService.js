@@ -26,6 +26,31 @@ const withTimeout = async (promise, timeoutMs) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const emitFallbackAlert = async ({ operation, reason }) => {
+  if (!env.geminiAlertWebhookUrl) return;
+  let timeout;
+  try {
+    const controller = new AbortController();
+    timeout = setTimeout(() => controller.abort(), 1500);
+    await fetch(env.geminiAlertWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        event: "gemini_fallback",
+        service: "fairscan-api",
+        operation,
+        reason,
+        timestamp: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    logger.warn("Gemini fallback alert webhook failed", { error: error.message, operation });
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const getGeminiClient = () => {
   if (!env.geminiApiKey) {
     return null;
@@ -51,9 +76,11 @@ const parseJsonResponse = (text, fallback) => {
   }
 };
 
-const runGeminiStructured = async ({ inputJson, instructions, fallback, maxWords = 120 }) => {
+const runGeminiStructured = async ({ operation, inputJson, instructions, fallback, maxWords = 120 }) => {
   const ai = getGeminiClient();
   if (!ai) {
+    logger.warn("Gemini API key missing, returning fallback response", { event: "gemini_fallback", operation });
+    void emitFallbackAlert({ operation, reason: "missing_api_key" });
     return fallback;
   }
 
@@ -107,13 +134,19 @@ const runGeminiStructured = async ({ inputJson, instructions, fallback, maxWords
 
     throw lastError || new Error("Gemini call failed");
   } catch (error) {
-    logger.warn("Gemini call failed. Returning fallback.", { error: error.message });
+    logger.warn("Gemini call failed. Returning fallback.", {
+      event: "gemini_fallback",
+      operation,
+      error: error.message
+    });
+    void emitFallbackAlert({ operation, reason: error.message });
     return fallback;
   }
 };
 
 const generateBiasExplanation = async (input) => {
   return runGeminiStructured({
+    operation: "generateBiasExplanation",
     inputJson: input,
     instructions: [
       "- Explain WHAT is happening in fairness metrics.",
@@ -134,6 +167,7 @@ const generateAuditSummary = async (input) => {
   };
 
   return runGeminiStructured({
+    operation: "generateAuditSummary",
     inputJson: input,
     instructions: [
       "- Produce an audit-ready summary with explicit sections.",
@@ -151,6 +185,7 @@ const generateFixSuggestions = async (input) => {
   };
 
   return runGeminiStructured({
+    operation: "generateFixSuggestions",
     inputJson: input,
     instructions: [
       "- Convert rule-based suggestions into concise implementation advice.",

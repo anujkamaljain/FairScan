@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "echo \"No tests configured yet\"",
-    "test:model-evaluator": "node scripts/test-model-evaluator.js"
+    "test": "echo \"No tests configured\""
   },
   "keywords": [],
   "author": "",
@@ -21,6 +20,7 @@
     "dotenv": "^17.4.1",
     "express": "^4.22.1",
     "express-async-errors": "^3.1.1",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",

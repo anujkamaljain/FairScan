@@ -8,6 +8,7 @@ const env = require("./config/env");
 const logger = require("./config/logger");
 const routes = require("./routes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
+const { authLimiter, apiLimiter } = require("./middleware/rateLimit");
 const { startAuditQueueWorker } = require("./utils/auditQueue");
 
 const app = express();
@@ -28,6 +29,12 @@ app.use(
     }
   })
 );
+
+app.use("/api/v1/auth", authLimiter);
+app.use("/api/v1/datasets", apiLimiter);
+app.use("/api/v1/predict-with-audit", apiLimiter);
+app.use("/api/v1/explain", apiLimiter);
+app.use("/api/v1/report", apiLimiter);
 
 app.use("/api/v1", routes);
 

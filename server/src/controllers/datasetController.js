@@ -79,7 +79,8 @@ const uploadAndAnalyzeDataset = async (req, res) => {
       targetColumn,
       sensitiveAttributes,
       positiveOutcome,
-      privilegedGroup
+      privilegedGroup,
+      actorId: req.user?.sub || req.user?.id || null
     });
 
     return sendSuccess(res, analysis, "Dataset uploaded and analyzed successfully", 201);

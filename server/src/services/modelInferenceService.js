@@ -1,6 +1,7 @@
 const AppError = require("../utils/appError");
 const { normalizeCategorical } = require("../utils/fairnessUtils");
 const env = require("../config/env");
+const logger = require("../config/logger");
 
 const toNumericSignal = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -73,7 +74,16 @@ const predictWithVertexModel = async (inputData, config) => {
       confidence: Number(confidence.toFixed(4)),
       model_type: "vertex"
     };
-  } catch (_error) {
+  } catch (error) {
+    logger.warn("Vertex inference call failed", {
+      error: error.message,
+      fallbackEnabled: env.mlAllowMockFallback
+    });
+
+    if (!env.mlAllowMockFallback) {
+      throw new AppError("Vertex inference is temporarily unavailable. Please retry.", 503);
+    }
+
     return {
       ...predictWithMockModel(inputData),
       model_type: "mock-fallback"

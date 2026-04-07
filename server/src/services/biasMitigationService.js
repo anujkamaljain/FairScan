@@ -5,6 +5,8 @@ const BiasReport = require("../models/BiasReport");
 const ModelAuditLog = require("../models/ModelAuditLog");
 const env = require("../config/env");
 const { analyzeBias } = require("./biasAnalysisService");
+const { parseDatasetBuffer } = require("./datasetIngestionService");
+const { downloadDatasetFileFromGcs } = require("./gcsStorageService");
 const { normalizeCategorical } = require("../utils/fairnessUtils");
 
 const computeCompositeBiasScore = (analysis) => {
@@ -54,6 +56,26 @@ const parseAnalysisContext = async (datasetDoc) => {
 };
 
 const cloneRows = (rows) => rows.map((row) => ({ ...row }));
+
+const loadDatasetRows = async (datasetDoc) => {
+  if (Array.isArray(datasetDoc.dataSnapshot) && datasetDoc.dataSnapshot.length) {
+    return cloneRows(datasetDoc.dataSnapshot);
+  }
+
+  if (datasetDoc.fileStorage?.provider === "gcs" && datasetDoc.fileStorage.objectPath) {
+    const buffer = await downloadDatasetFileFromGcs(datasetDoc.fileStorage);
+    const ingestion = await parseDatasetBuffer({
+      buffer,
+      originalname: datasetDoc.name || datasetDoc.fileName || "dataset.csv"
+    });
+    return ingestion.rows;
+  }
+
+  throw new AppError(
+    "Dataset snapshot unavailable for mitigation. Re-upload dataset with current pipeline before applying fixes.",
+    400
+  );
+};
 
 const choosePrimarySensitiveAttribute = (sensitiveAttributes) => sensitiveAttributes[0];
 
@@ -149,33 +171,31 @@ const persistMitigationRun = async (payload) => {
     action: "bias_mitigation_run",
     targetType: "dataset",
     targetId: payload.datasetId,
+    actorId: payload.actorId || null,
     details: payload
   });
 
   return doc._id;
 };
 
-const applyBiasFix = async ({ datasetId, fixType, config = {} }) => {
+const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null }) => {
   if (!datasetId) {
     throw new AppError("datasetId is required", 400);
+  }
+  if (!actorId) {
+    throw new AppError("Authenticated user context is required", 401);
   }
   if (!["REWEIGHT", "REMOVE_FEATURE", "BALANCE"].includes(fixType)) {
     throw new AppError("fixType must be one of REWEIGHT, REMOVE_FEATURE, BALANCE", 400);
   }
 
-  const datasetDoc = await Dataset.findById(datasetId).lean();
+  const datasetDoc = await Dataset.findOne({ _id: datasetId, ownerId: actorId }).lean();
   if (!datasetDoc) {
     throw new AppError("Dataset not found", 404);
   }
-  if (!Array.isArray(datasetDoc.dataSnapshot) || !datasetDoc.dataSnapshot.length) {
-    throw new AppError(
-      "Dataset snapshot unavailable for mitigation. Re-upload dataset with current pipeline before applying fixes.",
-      400
-    );
-  }
 
   const { targetColumn, sensitiveAttributes } = await parseAnalysisContext(datasetDoc);
-  const originalRows = cloneRows(datasetDoc.dataSnapshot);
+  const originalRows = await loadDatasetRows(datasetDoc);
   const originalColumns = Object.keys(originalRows[0] || {});
 
   const beforeAnalysis = analyzeBias({
@@ -256,6 +276,7 @@ const applyBiasFix = async ({ datasetId, fixType, config = {} }) => {
 
   const logId = await persistMitigationRun({
     datasetId: String(datasetId),
+    actorId,
     fixType,
     config,
     result: response

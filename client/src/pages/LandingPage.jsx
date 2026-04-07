@@ -57,12 +57,10 @@ function LandingPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-linear-to-b from-indigo-300/35 via-indigo-200/15 to-transparent dark:from-indigo-500/10 dark:via-indigo-500/5" />
 
       <section className="relative px-4 pb-16 pt-6 sm:px-6">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-gray-200 bg-white/85 px-4 py-3 backdrop-blur sm:px-6 dark:border-white/10 dark:bg-white/3">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-gray-200 bg-white/85 px-4 py-1.5 backdrop-blur sm:px-6 dark:border-white/10 dark:bg-white/3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-500/20 text-xs font-bold text-indigo-600 dark:text-indigo-300">
-              FS
-            </div>
-            <span className="text-sm font-semibold tracking-wide text-gray-900 dark:text-white">FairScan</span>
+            <img src="/Logo.png" alt="FairScan logo" className="h-12 w-12 rounded-md object-contain" />
+            <span className="text-lg font-semibold tracking-wide text-gray-900 dark:text-white">FairScan</span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

@@ -10,7 +10,10 @@ function AuthSplitLayout({ title, subtitle, switchText, switchLinkText, switchTo
           <div className="absolute right-10 top-44 h-64 w-64 rounded-full bg-cyan-300/35 blur-3xl dark:bg-cyan-500/20" />
           <div className="relative flex h-full w-full flex-col justify-between p-12">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">FairScan</p>
+              <div className="flex items-center gap-2.5">
+                <img src="/Logo.png" alt="FairScan logo" className="h-9 w-9 rounded-lg object-contain" />
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">FairScan</p>
+              </div>
               <h1 className="mt-4 text-4xl font-bold leading-tight text-gray-900 dark:text-white">AI Fairness Platform</h1>
               <p className="mt-4 max-w-md text-base leading-7 text-gray-700 dark:text-gray-200">
                 Build trustworthy AI by detecting, explaining, and fixing bias before it reaches production.
@@ -56,7 +59,10 @@ function AuthSplitLayout({ title, subtitle, switchText, switchLinkText, switchTo
         <div className="flex items-center justify-center px-4 py-10 sm:px-6">
           <article className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-xl shadow-gray-200/70 transition-all duration-200 dark:border-gray-800 dark:bg-gray-900 dark:shadow-black/40">
             <div className="lg:hidden">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400">FairScan</p>
+              <div className="flex items-center gap-2">
+                <img src="/Logo.png" alt="FairScan logo" className="h-8 w-8 rounded-md object-contain" />
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400">FairScan</p>
+              </div>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">AI Fairness Platform</p>
             </div>
             <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{title}</h2>

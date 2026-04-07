@@ -54,7 +54,24 @@ const uploadDatasetFileToGcs = async (file) => {
   };
 };
 
+const downloadDatasetFileFromGcs = async (fileStorage = {}) => {
+  if (!isGcsEnabled()) {
+    throw new Error("GCS storage is not enabled");
+  }
+  if (!fileStorage.objectPath) {
+    throw new Error("GCS object path is missing");
+  }
+
+  const client = getStorageClient();
+  const bucketName = fileStorage.bucket || env.gcsBucketName;
+  const bucket = client.bucket(bucketName);
+  const file = bucket.file(fileStorage.objectPath);
+  const [buffer] = await file.download();
+  return buffer;
+};
+
 module.exports = {
   isGcsEnabled,
-  uploadDatasetFileToGcs
+  uploadDatasetFileToGcs,
+  downloadDatasetFileFromGcs
 };

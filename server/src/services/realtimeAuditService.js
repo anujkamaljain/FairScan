@@ -14,13 +14,18 @@ const persistRealtimeAuditLog = async (payload) => {
     action: "realtime_prediction_audit",
     targetType: "model",
     targetId: payload.modelType || "mock",
+    actorId: payload.actorId || null,
     details: payload
   });
 
   return document._id;
 };
 
-const listRecentRealtimeAuditLogs = async (limit = 10) => {
+const listRecentRealtimeAuditLogs = async ({ limit = 10, actorId } = {}) => {
+  if (!actorId) {
+    return [];
+  }
+
   if (mongoose.connection.readyState !== 1) {
     if (env.dbRequired) {
       throw new Error("Database is required but not connected");
@@ -28,7 +33,7 @@ const listRecentRealtimeAuditLogs = async (limit = 10) => {
     return [];
   }
 
-  const docs = await ModelAuditLog.find({ action: "realtime_prediction_audit" })
+  const docs = await ModelAuditLog.find({ action: "realtime_prediction_audit", actorId })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();

@@ -65,9 +65,7 @@ function AppShell() {
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6">
           {/* Brand */}
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-              FS
-            </div>
+            <img src="/Logo.png" alt="FairScan logo" className="h-8 w-8 rounded-lg object-contain" />
             <div className="leading-tight">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-indigo-600 dark:text-indigo-400">
                 FairScan

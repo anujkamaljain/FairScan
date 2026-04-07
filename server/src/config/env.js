@@ -49,8 +49,16 @@ const env = {
   gcsBucketName: process.env.GCS_BUCKET_NAME || "",
   gcsKeyFilename: process.env.GCS_KEY_FILENAME || "",
   gcsDatasetPrefix: process.env.GCS_DATASET_PREFIX || "datasets",
+  authRateLimitWindowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 60000,
+  authRateLimitMax: Number(process.env.AUTH_RATE_LIMIT_MAX) || 20,
+  apiRateLimitWindowMs: Number(process.env.API_RATE_LIMIT_WINDOW_MS) || 60000,
+  apiRateLimitMax: Number(process.env.API_RATE_LIMIT_MAX) || 120,
   mlServiceUrl: process.env.ML_SERVICE_URL || "http://localhost:8001",
-  mlServiceTimeoutMs: Number(process.env.ML_SERVICE_TIMEOUT_MS) || 4000
+  mlServiceTimeoutMs: Number(process.env.ML_SERVICE_TIMEOUT_MS) || 4000,
+  mlAllowMockFallback:
+    process.env.ML_ALLOW_MOCK_FALLBACK === undefined
+      ? !isProd
+      : process.env.ML_ALLOW_MOCK_FALLBACK === "true"
 };
 
 module.exports = env;

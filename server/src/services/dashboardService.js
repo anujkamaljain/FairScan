@@ -74,7 +74,11 @@ const buildFallbackSummary = () => ({
   last_applied_fix: null
 });
 
-const getDashboardSummary = async () => {
+const getDashboardSummary = async ({ actorId } = {}) => {
+  if (!actorId) {
+    return buildFallbackSummary();
+  }
+
   if (mongoose.connection.readyState !== 1) {
     if (env.dbRequired) {
       throw new Error("Database is required but not connected");
@@ -82,17 +86,27 @@ const getDashboardSummary = async () => {
     return buildFallbackSummary();
   }
 
+  const ownedDatasets = await Dataset.find({ ownerId: actorId }).select({ _id: 1 }).lean();
+  const ownedDatasetIds = ownedDatasets.map((item) => item._id);
+
   const [datasetReports, modelLogs, realtimeLogs, activityLogs, latestMitigation] = await Promise.all([
-    BiasReport.find({ status: "completed" }).sort({ createdAt: -1 }).limit(6).lean(),
-    ModelAuditLog.find({ action: "model_fairness_evaluation" }).sort({ createdAt: -1 }).limit(6).lean(),
-    ModelAuditLog.find({ action: "realtime_prediction_audit" }).sort({ createdAt: -1 }).limit(15).lean(),
+    BiasReport.find({
+      status: "completed",
+      $or: [{ generatedBy: actorId }, { datasetId: { $in: ownedDatasetIds } }]
+    })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .lean(),
+    ModelAuditLog.find({ action: "model_fairness_evaluation", actorId }).sort({ createdAt: -1 }).limit(6).lean(),
+    ModelAuditLog.find({ action: "realtime_prediction_audit", actorId }).sort({ createdAt: -1 }).limit(15).lean(),
     ModelAuditLog.find({
-      action: { $in: ["model_fairness_evaluation", "realtime_prediction_audit", "bias_mitigation_run"] }
+      action: { $in: ["model_fairness_evaluation", "realtime_prediction_audit", "bias_mitigation_run"] },
+      actorId
     })
       .sort({ createdAt: -1 })
       .limit(8)
       .lean(),
-    ModelAuditLog.findOne({ action: "bias_mitigation_run" }).sort({ createdAt: -1 }).lean()
+    ModelAuditLog.findOne({ action: "bias_mitigation_run", actorId }).sort({ createdAt: -1 }).lean()
   ]);
 
   const datasetIdSet = new Set(datasetReports.map((report) => String(report.datasetId)));

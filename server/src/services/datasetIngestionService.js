@@ -64,6 +64,31 @@ const parseCsvFile = (filePath) =>
 
 const parseJsonFile = async (filePath) => {
   const content = await fs.readFile(filePath, "utf-8");
+  return parseJsonContent(content);
+};
+
+const parseCsvContent = (content) =>
+  new Promise((resolve, reject) => {
+    parse(
+      content,
+      {
+        columns: true,
+        trim: true,
+        bom: true,
+        skip_empty_lines: true,
+        relax_column_count: false
+      },
+      (error, records) => {
+        if (error) {
+          reject(new AppError(`Malformed CSV: ${error.message}`, 400));
+          return;
+        }
+        resolve(records);
+      }
+    );
+  });
+
+const parseJsonContent = (content) => {
   let parsed;
 
   try {
@@ -80,6 +105,25 @@ const parseJsonFile = async (filePath) => {
   }
 
   throw new AppError("JSON must be an array of objects (or { data: [...] })", 400);
+};
+
+const buildIngestionSummary = (rows) => {
+  ensureObjectRows(rows);
+  const columns = validateConsistentSchema(rows);
+  const normalizedRows = normalizeRows(rows, columns);
+  const missingValues = buildMissingValueSummary(normalizedRows, columns);
+  const mixedTypeColumns = detectMixedTypeColumns(normalizedRows, columns);
+
+  return {
+    rows: normalizedRows,
+    columns,
+    summary: {
+      rows: normalizedRows.length,
+      columns: columns.length,
+      missing_values: missingValues,
+      mixed_type_columns: mixedTypeColumns
+    }
+  };
 };
 
 const ensureObjectRows = (rows) => {
@@ -171,24 +215,33 @@ const parseDatasetFile = async (file) => {
     throw new AppError("Unsupported file format. Use CSV or JSON", 400);
   }
 
-  ensureObjectRows(rows);
-  const columns = validateConsistentSchema(rows);
-  const normalizedRows = normalizeRows(rows, columns);
-  const missingValues = buildMissingValueSummary(normalizedRows, columns);
-  const mixedTypeColumns = detectMixedTypeColumns(normalizedRows, columns);
+  return buildIngestionSummary(rows);
+};
 
-  return {
-    rows: normalizedRows,
-    columns,
-    summary: {
-      rows: normalizedRows.length,
-      columns: columns.length,
-      missing_values: missingValues,
-      mixed_type_columns: mixedTypeColumns
-    }
-  };
+const parseDatasetBuffer = async ({ buffer, originalname }) => {
+  if (!buffer || !Buffer.isBuffer(buffer)) {
+    throw new AppError("Dataset buffer is required", 400);
+  }
+  if (!originalname) {
+    throw new AppError("Dataset file name is required", 400);
+  }
+
+  const extension = path.extname(String(originalname)).toLowerCase();
+  const content = buffer.toString("utf-8");
+
+  let rows = [];
+  if (extension === ".csv") {
+    rows = await parseCsvContent(content);
+  } else if (extension === ".json") {
+    rows = parseJsonContent(content);
+  } else {
+    throw new AppError("Unsupported file format. Use CSV or JSON", 400);
+  }
+
+  return buildIngestionSummary(rows);
 };
 
 module.exports = {
-  parseDatasetFile
+  parseDatasetFile,
+  parseDatasetBuffer
 };

@@ -26,6 +26,7 @@ const normalizePrediction = (prediction) => {
 
 const predictWithAudit = async (req, res) => {
   const { inputData, sensitiveAttributes, modelConfig = { type: "mock" } } = req.body || {};
+  const actorId = req.user?.sub || req.user?.id || null;
 
   const inferencePrediction = await predict(inputData, modelConfig);
   const prediction = normalizePrediction(inferencePrediction);
@@ -46,6 +47,7 @@ const predictWithAudit = async (req, res) => {
     counterfactual_results: biasCheck.counterfactual_results,
     sensitive_attributes: sensitiveAttributes,
     modelType: modelConfig.type || "mock",
+    actorId,
     timestamp: new Date().toISOString()
   });
 
@@ -65,7 +67,10 @@ const predictWithAudit = async (req, res) => {
 };
 
 const getRecentRealtimeAuditLogs = async (req, res) => {
-  const logs = await listRecentRealtimeAuditLogs(10);
+  const logs = await listRecentRealtimeAuditLogs({
+    limit: 10,
+    actorId: req.user?.sub || req.user?.id || null
+  });
   return sendSuccess(res, { logs }, "Recent realtime audit logs fetched", 200);
 };
 

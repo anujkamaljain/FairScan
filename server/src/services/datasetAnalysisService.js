@@ -8,7 +8,7 @@ const { isGcsEnabled, uploadDatasetFileToGcs } = require("./gcsStorageService");
 const logger = require("../config/logger");
 const env = require("../config/env");
 
-const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, sensitiveAttributes }) => {
+const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, sensitiveAttributes, actorId }) => {
   if (mongoose.connection.readyState !== 1) {
     if (env.dbRequired) {
       throw new Error("Database is required but not connected");
@@ -26,6 +26,7 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
     const gcsMetadata = await uploadDatasetFileToGcs(file);
     fileStorage = gcsMetadata;
   }
+  const persistSnapshot = fileStorage.provider !== "gcs";
 
   const datasetDoc = await Dataset.create({
     name: file.originalname,
@@ -36,6 +37,7 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
       columns: ingestion.columns,
       missing_values: ingestion.summary.missing_values,
       mixed_type_columns: ingestion.summary.mixed_type_columns,
+      snapshot_persisted: persistSnapshot,
       analysis_context: {
         target_column: targetColumn,
         sensitive_attributes: sensitiveAttributes
@@ -44,11 +46,13 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
     fileName: file.filename,
     fileType: file.mimetype || "unknown",
     fileStorage,
-    dataSnapshot: ingestion.rows
+    ownerId: actorId || undefined,
+    dataSnapshot: persistSnapshot ? ingestion.rows : []
   });
 
   const reportDoc = await BiasReport.create({
     datasetId: datasetDoc._id,
+    generatedBy: actorId || undefined,
     status: "completed",
     metrics: analysis.bias_metrics,
     groupDistributions: analysis.group_distributions,
@@ -78,7 +82,8 @@ const runDatasetAnalysis = async ({
   targetColumn,
   sensitiveAttributes,
   positiveOutcome,
-  privilegedGroup = {}
+  privilegedGroup = {},
+  actorId = null
 }) => {
   const ingestion = await parseDatasetFile(file);
   const analysis = analyzeBias({
@@ -95,7 +100,8 @@ const runDatasetAnalysis = async ({
     ingestion,
     analysis,
     targetColumn,
-    sensitiveAttributes
+    sensitiveAttributes,
+    actorId
   });
 
   return {

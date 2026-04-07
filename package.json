@@ -1,0 +1,23 @@
+{
+  "name": "fairsight-ai",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Monorepo for FairSight AI platform",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev -w client",
+    "dev:server": "npm run dev -w server",
+    "build:client": "npm run build -w client",
+    "start:server": "npm run start -w server"
+  },
+  "keywords": [
+    "fairsight-ai",
+    "mern",
+    "ai-fairness"
+  ],
+  "author": "",
+  "license": "ISC"
+}

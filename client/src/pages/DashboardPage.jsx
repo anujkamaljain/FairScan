@@ -226,7 +226,7 @@ function DashboardPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Phase 6 Mitigation Impact" description="Last applied bias mitigation fix">
+      <SectionCard title="Mitigation Impact" description="Last applied bias mitigation fix">
         <div className="mt-6">
           {summary?.last_applied_fix ? (
             <div className="grid gap-4 md:grid-cols-4">

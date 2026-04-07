@@ -16,6 +16,37 @@ function AuthSplitLayout({ title, subtitle, switchText, switchLinkText, switchTo
                 Build trustworthy AI by detecting, explaining, and fixing bias before it reaches production.
               </p>
             </div>
+            <div className="rounded-2xl border border-gray-300/80 bg-white/65 p-5 backdrop-blur dark:border-white/15 dark:bg-white/5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Platform Snapshot
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900/70">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Bias Score</p>
+                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">0.3184</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900/70">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Risk</p>
+                  <p className="mt-1 text-base font-semibold text-amber-500 dark:text-amber-300">MEDIUM</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900/70">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Coverage</p>
+                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">99.2%</p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900/70">
+                <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300">Last 7-day trend</p>
+                <div className="mt-3 flex items-end gap-1.5">
+                  {[30, 42, 38, 50, 46, 58, 54].map((height, idx) => (
+                    <div
+                      key={`trend-${idx}`}
+                      className="w-6 rounded-sm bg-indigo-300/70 transition-all duration-200 dark:bg-indigo-500/70"
+                      style={{ height: `${height}px` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
             <div className="rounded-2xl border border-gray-300/70 bg-white/50 p-5 text-sm text-gray-700 backdrop-blur dark:border-white/15 dark:bg-white/5 dark:text-gray-200">
               Trusted workflow for fairness auditing across datasets, models, and live inference.
             </div>

@@ -20,7 +20,36 @@ const featureCards = [
   }
 ]
 
-const workflowSteps = ['Upload Dataset', 'Analyze Bias', 'Apply Mitigation', 'Monitor in Real-Time']
+const howItWorksCards = [
+  {
+    step: 'Step 1',
+    title: 'Upload Dataset',
+    description: 'Provide your training or prediction dataset securely for analysis.',
+    accent:
+      'from-indigo-200/80 via-indigo-100/55 to-white dark:from-indigo-500/25 dark:via-indigo-500/10 dark:to-gray-900/80'
+  },
+  {
+    step: 'Step 2',
+    title: 'Analyze Bias',
+    description: 'Detect disparities across sensitive groups with clear fairness metrics.',
+    accent:
+      'from-cyan-200/80 via-sky-100/55 to-white dark:from-cyan-500/25 dark:via-sky-500/10 dark:to-gray-900/80'
+  },
+  {
+    step: 'Step 3',
+    title: 'Apply Mitigation',
+    description: 'Run mitigation strategies and compare before-vs-after impact quickly.',
+    accent:
+      'from-amber-200/80 via-orange-100/55 to-white dark:from-indigo-500/25 dark:via-cyan-500/10 dark:to-gray-900/80'
+  },
+  {
+    step: 'Step 4',
+    title: 'Monitor in Real-Time',
+    description: 'Continuously monitor decisions and catch fairness drift early.',
+    accent:
+      'from-violet-200/80 via-fuchsia-100/55 to-white dark:from-violet-500/25 dark:via-fuchsia-500/10 dark:to-gray-900/80'
+  }
+]
 
 function LandingPage() {
   return (
@@ -122,15 +151,22 @@ function LandingPage() {
       <section className="px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-6xl rounded-2xl border border-gray-200 bg-white p-6 md:p-10 dark:border-white/10 dark:bg-white/3">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white md:text-3xl">How it works</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-4">
-            {workflowSteps.map((step, idx) => (
-              <div
-                key={step}
-                className="rounded-xl border border-gray-200 bg-gray-50 p-5 transition-all duration-200 hover:border-gray-300 dark:border-white/10 dark:bg-gray-950/70 dark:hover:border-white/20"
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {howItWorksCards.map((card, idx) => (
+              <article
+                key={card.title}
+                className={`relative rounded-2xl border border-gray-200 bg-linear-to-b ${card.accent} p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10`}
               >
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">Step {idx + 1}</p>
-                <p className="mt-3 text-sm font-medium text-gray-900 dark:text-gray-100">{step}</p>
-              </div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">{card.step}</p>
+                <h3 className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">{card.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-gray-700 dark:text-gray-300">{card.description}</p>
+                {idx < howItWorksCards.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-2 top-1/2 hidden h-4 w-4 -translate-y-1/2 rotate-45 border-r-2 border-t-2 border-indigo-300 dark:border-indigo-500 xl:block"
+                  />
+                )}
+              </article>
             ))}
           </div>
         </div>

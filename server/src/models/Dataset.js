@@ -39,6 +39,29 @@ const datasetSchema = new mongoose.Schema(
     fileType: {
       type: String
     },
+    fileStorage: {
+      provider: {
+        type: String,
+        enum: ["local", "gcs"],
+        default: "local"
+      },
+      bucket: {
+        type: String
+      },
+      objectPath: {
+        type: String
+      },
+      gcsUri: {
+        type: String
+      },
+      sizeBytes: {
+        type: Number,
+        default: 0
+      },
+      uploadedAt: {
+        type: Date
+      }
+    },
     dataSnapshot: {
       type: [mongoose.Schema.Types.Mixed],
       default: []

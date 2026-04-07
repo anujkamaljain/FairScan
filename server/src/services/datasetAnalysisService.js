@@ -4,6 +4,7 @@ const Dataset = require("../models/Dataset");
 const BiasReport = require("../models/BiasReport");
 const { parseDatasetFile } = require("./datasetIngestionService");
 const { analyzeBias } = require("./biasAnalysisService");
+const { isGcsEnabled, uploadDatasetFileToGcs } = require("./gcsStorageService");
 const logger = require("../config/logger");
 const env = require("../config/env");
 
@@ -13,6 +14,17 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
       throw new Error("Database is required but not connected");
     }
     return { datasetId: null, reportId: null, persistenceSkipped: true };
+  }
+
+  let fileStorage = {
+    provider: "local",
+    sizeBytes: Number(file.size || 0),
+    uploadedAt: new Date()
+  };
+
+  if (isGcsEnabled()) {
+    const gcsMetadata = await uploadDatasetFileToGcs(file);
+    fileStorage = gcsMetadata;
   }
 
   const datasetDoc = await Dataset.create({
@@ -31,6 +43,7 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
     },
     fileName: file.filename,
     fileType: file.mimetype || "unknown",
+    fileStorage,
     dataSnapshot: ingestion.rows
   });
 

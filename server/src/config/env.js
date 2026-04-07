@@ -20,6 +20,15 @@ if (isProd && (!process.env.CORS_ORIGIN || /localhost|127\.0\.0\.1/i.test(proces
   throw new Error("CORS_ORIGIN must be configured to production frontend origin(s)");
 }
 
+const datasetStorageProvider = (process.env.DATASET_STORAGE_PROVIDER || "local").toLowerCase();
+if (!["local", "gcs"].includes(datasetStorageProvider)) {
+  throw new Error("DATASET_STORAGE_PROVIDER must be either 'local' or 'gcs'");
+}
+
+if (isProd && datasetStorageProvider === "gcs" && !process.env.GCS_BUCKET_NAME) {
+  throw new Error("GCS_BUCKET_NAME must be set when DATASET_STORAGE_PROVIDER=gcs");
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 5000,
@@ -35,6 +44,11 @@ const env = {
   geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS) || 12000,
   geminiAlertWebhookUrl: process.env.GEMINI_ALERT_WEBHOOK_URL || "",
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || "",
+  datasetStorageProvider,
+  gcsProjectId: process.env.GCS_PROJECT_ID || "",
+  gcsBucketName: process.env.GCS_BUCKET_NAME || "",
+  gcsKeyFilename: process.env.GCS_KEY_FILENAME || "",
+  gcsDatasetPrefix: process.env.GCS_DATASET_PREFIX || "datasets",
   mlServiceUrl: process.env.ML_SERVICE_URL || "http://localhost:8001",
   mlServiceTimeoutMs: Number(process.env.ML_SERVICE_TIMEOUT_MS) || 4000
 };

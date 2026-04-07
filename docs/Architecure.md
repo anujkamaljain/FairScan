@@ -186,8 +186,9 @@ Technical flow:
 
 Resilience behavior:
 
-- Vertex path can fallback to mock in non-prod (or when enabled)
-- In production, fallback can be disabled for explicit failures
+- ML service `/predict` is Vertex-first when `USE_VERTEX_INFERENCE=true`
+- Deterministic fallback only occurs if `ALLOW_DETERMINISTIC_FALLBACK=true`
+- `/validate-model` endpoint can be used to verify provider/health before production cutover
 
 ---
 

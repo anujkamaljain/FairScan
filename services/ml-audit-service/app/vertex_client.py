@@ -81,7 +81,7 @@ class VertexClient:
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=45,
+            timeout=self.settings.vertex_timeout_seconds,
         )
 
         if not response.ok:

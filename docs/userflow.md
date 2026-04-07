@@ -20,6 +20,18 @@ Expected:
 - Landing page loads correctly
 - No console/network fatal errors
 
+Pre-flight ML check:
+
+```bash
+curl https://<ml-url>/health
+curl -X POST https://<ml-url>/validate-model -H "Content-Type: application/json" -d "{\"inputData\":{\"income\":72000,\"credit_score\":730,\"tenure_years\":4}}"
+```
+
+Expected:
+
+- `/health` returns `vertex_available: true` in your Vertex-enabled environment
+- `/validate-model` returns `valid: true` and `provider: "vertex"` for strict production setup
+
 ---
 
 ## 1) Authentication Flow
@@ -156,6 +168,7 @@ Expected:
 - Bias risk and reason code shown
 - Realtime explanation shown
 - New log entry appears in recent logs
+- For strict production profile, use `vertex` and verify no deterministic fallback is active
 
 Then:
 

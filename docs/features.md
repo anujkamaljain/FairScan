@@ -47,8 +47,9 @@ This file lists the key app features, which Google technologies are used, and wh
 - **User feature**: Send one record, get prediction + fairness risk + reason codes.
 - **Where in app**: `Realtime Audit` page.
 - **Google technologies**:
-  - ML service deploy target: **Cloud Run**.
-  - Optional Vertex/Google-auth wiring exists in ML service runtime support files.
+  - Vertex AI REST model invocation via ML service (`services/ml-audit-service`).
+  - Google-auth ADC/service-account flow used by ML service for Vertex token.
+  - ML service deployed on **Cloud Run**.
 - **Use case**:
   - Fairness-aware decisioning for live inference workflows.
 
@@ -111,4 +112,4 @@ This file lists the key app features, which Google technologies are used, and wh
 | Gemini API (`@google/genai`) | Backend explain/report services | Narrative explainability + recommendations |
 | Google Cloud Storage | Backend dataset storage service | Store uploaded files at scale |
 | Cloud Run | Backend + ML service deployment target | Managed serverless runtime |
-| (Optional) Vertex auth/runtime wiring | ML service helper modules | Future/advanced model invocation path |
+| Vertex AI (generateContent endpoint) | ML service `/predict` and `/validate-model` | Real model-backed inference with readiness validation |

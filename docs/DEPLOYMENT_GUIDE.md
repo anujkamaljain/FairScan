@@ -108,13 +108,21 @@ Note: `GOOGLE_OAUTH_CLIENT_SECRET` is not used by current backend Google login f
 
 ## C) ML Service (`services/ml-audit-service`) - Cloud Run env vars
 
-Current service supports deterministic `/predict`, and Vertex credential health via `vertex_available`.
+Current service supports:
+
+- Vertex-first inference on `/predict` (when enabled)
+- Runtime policy fallback control
+- `POST /validate-model` for readiness validation
+- Vertex credential/runtime health via `/health`
 
 Set:
 
 - `VERTEX_AI_PROJECT_ID` -> your project id
 - `VERTEX_AI_LOCATION` -> usually `us-central1`
 - `GEMINI_MODEL` -> keep `gemini-2.5-pro`
+- `USE_VERTEX_INFERENCE` -> set `true` in production
+- `ALLOW_DETERMINISTIC_FALLBACK` -> set `false` in production
+- `VERTEX_TIMEOUT_SECONDS` -> keep `45` unless you need longer timeout
 
 Recommended on Cloud Run:
 
@@ -212,6 +220,7 @@ Replace placeholders and run:
 ```bash
 curl https://<backend-url>/api/v1/health
 curl https://<ml-url>/health
+curl -X POST https://<ml-url>/validate-model -H "Content-Type: application/json" -d "{\"inputData\":{\"income\":72000,\"credit_score\":730,\"tenure_years\":4}}"
 ```
 
 Manual checks:
@@ -241,6 +250,8 @@ Use these production-safe defaults:
 - `ML_ALLOW_MOCK_FALLBACK=false`
 - `AUTH_RATE_LIMIT_MAX=20` (or lower)
 - `API_RATE_LIMIT_MAX=120` (or lower)
+- `USE_VERTEX_INFERENCE=true` (ML service)
+- `ALLOW_DETERMINISTIC_FALLBACK=false` (ML service)
 
 ---
 
@@ -250,6 +261,7 @@ Use these production-safe defaults:
 - Forgetting to update OAuth origins after deployment
 - Putting secrets in Vercel frontend env vars
 - Leaving `ML_ALLOW_MOCK_FALLBACK=true` in production
+- Leaving `ALLOW_DETERMINISTIC_FALLBACK=true` in ML production runtime
 - Committing `.env` files or key files
 
 ---

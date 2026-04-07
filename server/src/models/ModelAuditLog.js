@@ -12,8 +12,7 @@ const modelAuditLogSchema = new mongoose.Schema(
     },
     actorId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
+      ref: "User"
     },
     targetType: {
       type: String,
@@ -25,8 +24,7 @@ const modelAuditLogSchema = new mongoose.Schema(
       required: true
     },
     details: {
-      type: Map,
-      of: String,
+      type: mongoose.Schema.Types.Mixed,
       default: {}
     }
   },

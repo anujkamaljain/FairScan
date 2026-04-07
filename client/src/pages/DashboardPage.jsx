@@ -4,8 +4,8 @@ function DashboardPage() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">Platform Overview</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Platform Overview</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           Initial architecture scaffold for fairness workflows, model audits, and compliance reporting.
         </p>
       </div>

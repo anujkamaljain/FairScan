@@ -1,15 +1,10 @@
 const AppError = require("../utils/appError");
-
-const POSITIVE_TOKENS = new Set(["1", "true", "yes", "y", "approved", "accept", "positive", "pass"]);
-const NEGATIVE_TOKENS = new Set(["0", "false", "no", "n", "rejected", "reject", "negative", "fail"]);
-
-const normalizeCategorical = (value) => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  const text = String(value).trim();
-  return text.length ? text.toLowerCase() : null;
-};
+const {
+  normalizeCategorical,
+  buildPositiveOutcomeMatcher,
+  resolvePrivilegedGroup,
+  applyRandomSampling
+} = require("../utils/fairnessUtils");
 
 const parseNumeric = (value) => {
   if (value === null || value === undefined || value === "") {
@@ -31,28 +26,8 @@ const uniqueValues = (dataset, column) => {
 };
 
 const resolvePositiveOutcomeMatcher = (dataset, targetColumn, positiveOutcome) => {
-  const targetValues = uniqueValues(dataset, targetColumn);
-  if (targetValues.length < 2) {
-    throw new AppError(`Target column '${targetColumn}' must contain at least two non-empty classes`, 400);
-  }
-
-  if (positiveOutcome !== undefined && positiveOutcome !== null && String(positiveOutcome).trim() !== "") {
-    const normalizedPositive = normalizeCategorical(positiveOutcome);
-    return (value) => normalizeCategorical(value) === normalizedPositive;
-  }
-
-  const normalizedValues = targetValues.map((value) => normalizeCategorical(value));
-  const allBinaryLike = normalizedValues.every(
-    (value) => POSITIVE_TOKENS.has(value) || NEGATIVE_TOKENS.has(value)
-  );
-  if (!allBinaryLike) {
-    throw new AppError(
-      `Target column '${targetColumn}' is not binary-like. Please provide 'positiveOutcome' explicitly.`,
-      400
-    );
-  }
-
-  return (value) => POSITIVE_TOKENS.has(normalizeCategorical(value));
+  const targetValues = dataset.map((row) => row[targetColumn]);
+  return buildPositiveOutcomeMatcher(targetValues, positiveOutcome, `Target column '${targetColumn}'`);
 };
 
 const prepareSensitiveAttributes = (dataset, sensitiveAttributes) => {
@@ -140,7 +115,7 @@ const computeDemographicParity = (dataset, targetColumn, sensitiveAttr, positive
   };
 };
 
-const computeDisparateImpact = (dataset, targetColumn, sensitiveAttr, positiveOutcome) => {
+const computeDisparateImpact = (dataset, targetColumn, sensitiveAttr, positiveOutcome, explicitPrivilegedGroup) => {
   const isPositiveOutcome = resolvePositiveOutcomeMatcher(dataset, targetColumn, positiveOutcome);
   const groupRates = getGroupStats(dataset, targetColumn, sensitiveAttr, isPositiveOutcome);
   const groups = Object.keys(groupRates);
@@ -151,13 +126,16 @@ const computeDisparateImpact = (dataset, targetColumn, sensitiveAttr, positiveOu
     );
   }
 
-  const ranked = groups
+  const { privilegedGroup, selectionMethod } = resolvePrivilegedGroup(groupRates, explicitPrivilegedGroup);
+  const privileged = {
+    group: privilegedGroup,
+    rate: groupRates[privilegedGroup].rate
+  };
+  const unprivilegedCandidates = groups
+    .filter((group) => group !== privileged.group)
     .map((group) => ({ group, rate: groupRates[group].rate }))
-    .filter((entry) => entry.rate !== null)
     .sort((a, b) => a.rate - b.rate);
-
-  const unprivileged = ranked[0];
-  const privileged = ranked[ranked.length - 1];
+  const unprivileged = unprivilegedCandidates[0];
   const ratio = privileged.rate > 0 ? unprivileged.rate / privileged.rate : null;
 
   return {
@@ -166,7 +144,8 @@ const computeDisparateImpact = (dataset, targetColumn, sensitiveAttr, positiveOu
     unprivileged_group: unprivileged.group,
     privileged_rate: privileged.rate,
     unprivileged_rate: unprivileged.rate,
-    ratio
+    ratio,
+    privileged_selection_method: selectionMethod
   };
 };
 
@@ -211,7 +190,11 @@ const basicBiasScoreAggregator = (metrics) => {
     diPenalty = 1 - normalizedRatio;
   }
 
-  const weightedScore = 0.6 * demographicGap + 0.4 * diPenalty;
+  // Interpretable weighted score in [0,1]:
+  // 0.55 * demographic parity gap + 0.45 * disparate impact penalty.
+  // Demographic parity gap captures absolute separation in positive rates.
+  // DI penalty is (1 - min(DI, 1/DI)), where 0 means balanced DI and 1 means maximal disparity.
+  const weightedScore = 0.55 * demographicGap + 0.45 * diPenalty;
   const score = Math.max(0, Math.min(1, Number(weightedScore.toFixed(4))));
 
   return score;
@@ -428,7 +411,15 @@ const computeNumericCorrelationMatrix = (dataset, columns) => {
   return matrix;
 };
 
-const analyzeBias = ({ dataset, columns, targetColumn, sensitiveAttributes, positiveOutcome }) => {
+const analyzeBias = ({
+  dataset,
+  columns,
+  targetColumn,
+  sensitiveAttributes,
+  positiveOutcome,
+  privilegedGroup = {},
+  maxAnalysisRows = 10000
+}) => {
   if (!targetColumn) {
     throw new AppError("targetColumn is required", 400);
   }
@@ -438,25 +429,29 @@ const analyzeBias = ({ dataset, columns, targetColumn, sensitiveAttributes, posi
 
   prepareSensitiveAttributes(dataset, sensitiveAttributes);
 
+  const sampling = applyRandomSampling(dataset, maxAnalysisRows);
+  const workingDataset = sampling.rows;
+
   const demographicParityByAttribute = {};
   const disparateImpactByAttribute = {};
   const groupDistributions = {};
 
   sensitiveAttributes.forEach((sensitiveAttr) => {
     demographicParityByAttribute[sensitiveAttr] = computeDemographicParity(
-      dataset,
+      workingDataset,
       targetColumn,
       sensitiveAttr,
       positiveOutcome
     );
     disparateImpactByAttribute[sensitiveAttr] = computeDisparateImpact(
-      dataset,
+      workingDataset,
       targetColumn,
       sensitiveAttr,
-      positiveOutcome
+      positiveOutcome,
+      privilegedGroup[sensitiveAttr]
     );
     groupDistributions[sensitiveAttr] = groupOutcomeDistribution(
-      dataset,
+      workingDataset,
       targetColumn,
       sensitiveAttr,
       positiveOutcome
@@ -477,8 +472,15 @@ const analyzeBias = ({ dataset, columns, targetColumn, sensitiveAttributes, posi
   });
   const riskLevel = riskLevelFromScore(biasScore);
 
-  const flaggedFeatures = detectProxyFeatures(dataset, columns, sensitiveAttributes, targetColumn);
-  const numericCorrelationMatrix = computeNumericCorrelationMatrix(dataset, columns);
+  const flaggedFeatures = detectProxyFeatures(workingDataset, columns, sensitiveAttributes, targetColumn);
+  const numericCorrelationMatrix = computeNumericCorrelationMatrix(workingDataset, columns);
+  const privilegedGroupUsed = {};
+  Object.entries(disparateImpactByAttribute).forEach(([attribute, data]) => {
+    privilegedGroupUsed[attribute] = {
+      group: data.privileged_group,
+      selection_method: data.privileged_selection_method
+    };
+  });
 
   return {
     bias_metrics: {
@@ -489,7 +491,16 @@ const analyzeBias = ({ dataset, columns, targetColumn, sensitiveAttributes, posi
     group_distributions: groupDistributions,
     flagged_features: flaggedFeatures,
     bias_score: biasScore,
-    risk_level: riskLevel
+    risk_level: riskLevel,
+    assumptions: {
+      privileged_group_used: privilegedGroupUsed,
+      sampling_applied: sampling.sampled,
+      sampling: {
+        original_size: sampling.originalSize,
+        sampled_size: sampling.sampledSize,
+        threshold: sampling.maxRows
+      }
+    }
   };
 };
 

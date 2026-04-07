@@ -55,14 +55,21 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
   };
 };
 
-const runDatasetAnalysis = async ({ file, targetColumn, sensitiveAttributes, positiveOutcome }) => {
+const runDatasetAnalysis = async ({
+  file,
+  targetColumn,
+  sensitiveAttributes,
+  positiveOutcome,
+  privilegedGroup = {}
+}) => {
   const ingestion = await parseDatasetFile(file);
   const analysis = analyzeBias({
     dataset: ingestion.rows,
     columns: ingestion.columns,
     targetColumn,
     sensitiveAttributes,
-    positiveOutcome
+    positiveOutcome,
+    privilegedGroup
   });
 
   const persistence = await saveAnalysisRecords({

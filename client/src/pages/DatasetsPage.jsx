@@ -99,64 +99,64 @@ function DatasetsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold">Dataset Bias Analyzer</h2>
-        <p className="mt-2 text-sm text-slate-600">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Dataset Bias Analyzer</h2>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Upload a dataset and compute fairness metrics against selected sensitive attributes.
         </p>
 
         <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-slate-700">Dataset file (CSV or JSON)</span>
+            <span className="font-medium text-slate-700 dark:text-slate-200">Dataset file (CSV or JSON)</span>
             <input
               type="file"
               accept=".csv,.json"
               onChange={(event) => setFile(event.target.files?.[0] || null)}
-              className="rounded-lg border border-slate-300 px-3 py-2"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
 
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-slate-700">Target column</span>
+            <span className="font-medium text-slate-700 dark:text-slate-200">Target column</span>
             <input
               value={targetColumn}
               onChange={(event) => setTargetColumn(event.target.value)}
               placeholder="e.g. approved"
-              className="rounded-lg border border-slate-300 px-3 py-2"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
 
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-slate-700">Sensitive attributes</span>
+            <span className="font-medium text-slate-700 dark:text-slate-200">Sensitive attributes</span>
             <input
               value={sensitiveAttributes}
               onChange={(event) => setSensitiveAttributes(event.target.value)}
               placeholder="e.g. gender,age_group"
-              className="rounded-lg border border-slate-300 px-3 py-2"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
 
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-slate-700">Positive outcome (optional)</span>
+            <span className="font-medium text-slate-700 dark:text-slate-200">Positive outcome (optional)</span>
             <input
               value={positiveOutcome}
               onChange={(event) => setPositiveOutcome(event.target.value)}
               placeholder="e.g. yes"
-              className="rounded-lg border border-slate-300 px-3 py-2"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </label>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="inline-flex w-fit rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-50"
           >
             {isSubmitting ? 'Analyzing...' : 'Upload and Analyze'}
           </button>
         </form>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         )}
@@ -165,16 +165,16 @@ function DatasetsPage() {
       {result && (
         <>
           <div className="grid gap-4 md:grid-cols-3">
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-medium text-slate-600">Rows</h3>
+            <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">Rows</h3>
               <p className="mt-2 text-2xl font-semibold">{result.dataset_summary?.rows ?? 0}</p>
             </article>
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-medium text-slate-600">Columns</h3>
+            <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">Columns</h3>
               <p className="mt-2 text-2xl font-semibold">{result.dataset_summary?.columns ?? 0}</p>
             </article>
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-medium text-slate-600">Bias Score</h3>
+            <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-sm font-medium text-slate-600 dark:text-slate-300">Bias Score</h3>
               <p className="mt-2 text-2xl font-semibold">{(result.bias_score ?? 0).toFixed(4)}</p>
               <p
                 className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
@@ -191,9 +191,9 @@ function DatasetsPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold">Group Positive Rate Comparison</h3>
-              <p className="mt-1 text-sm text-slate-600">
+            <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Group Positive Rate Comparison</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                 {selectedSensitiveAttr
                   ? `Sensitive attribute: ${selectedSensitiveAttr}`
                   : 'No group data available'}
@@ -211,9 +211,9 @@ function DatasetsPage() {
               </div>
             </article>
 
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold">Outcome Distribution by Group</h3>
-              <p className="mt-1 text-sm text-slate-600">Positive vs negative outcomes per group</p>
+            <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Outcome Distribution by Group</h3>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Positive vs negative outcomes per group</p>
               <div className="mt-4 h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={distributionData}>
@@ -229,13 +229,13 @@ function DatasetsPage() {
             </article>
           </div>
 
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold">Flagged Proxy Features</h3>
+          <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Flagged Proxy Features</h3>
             {result.flagged_features?.length ? (
               <div className="mt-4 overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
+                <table className="min-w-full text-left text-sm text-slate-700 dark:text-slate-200">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
                       <th className="px-2 py-2 font-medium">Feature</th>
                       <th className="px-2 py-2 font-medium">Sensitive Attribute</th>
                       <th className="px-2 py-2 font-medium">Correlation</th>
@@ -244,7 +244,7 @@ function DatasetsPage() {
                   </thead>
                   <tbody>
                     {result.flagged_features.map((item) => (
-                      <tr key={`${item.feature}-${item.sensitive_attribute}`} className="border-b border-slate-100">
+                      <tr key={`${item.feature}-${item.sensitive_attribute}`} className="border-b border-slate-100 dark:border-slate-800">
                         <td className="px-2 py-2">{item.feature}</td>
                         <td className="px-2 py-2">{item.sensitive_attribute}</td>
                         <td className="px-2 py-2">{item.correlation}</td>
@@ -267,7 +267,7 @@ function DatasetsPage() {
                 </table>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-slate-600">No highly correlated proxy features were flagged.</p>
+              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">No highly correlated proxy features were flagged.</p>
             )}
           </article>
         </>

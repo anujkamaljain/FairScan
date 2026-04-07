@@ -1,0 +1,13 @@
+prediction,groundTruth,gender,age_group
+yes,yes,male,18-25
+yes,no,male,18-25
+yes,yes,male,26-35
+yes,yes,male,26-35
+no,no,male,36-45
+yes,yes,male,36-45
+yes,no,female,18-25
+yes,no,female,18-25
+no,yes,female,26-35
+no,yes,female,26-35
+no,no,female,36-45
+no,yes,female,36-45

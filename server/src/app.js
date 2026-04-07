@@ -7,6 +7,7 @@ const morgan = require("morgan");
 const logger = require("./config/logger");
 const routes = require("./routes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
+const { startAuditQueueWorker } = require("./utils/auditQueue");
 
 const app = express();
 
@@ -23,6 +24,8 @@ app.use(
 );
 
 app.use("/api/v1", routes);
+
+startAuditQueueWorker();
 
 app.use(notFoundHandler);
 app.use(errorHandler);

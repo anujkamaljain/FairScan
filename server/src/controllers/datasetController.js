@@ -45,18 +45,41 @@ const parseSensitiveAttributes = (rawValue) => {
   throw new AppError("sensitiveAttributes must be an array or comma-separated string", 400);
 };
 
+const parsePrivilegedGroup = (rawValue) => {
+  if (!rawValue) {
+    return {};
+  }
+  if (typeof rawValue === "object" && !Array.isArray(rawValue)) {
+    return rawValue;
+  }
+  if (typeof rawValue === "string") {
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+        throw new AppError("privilegedGroup must be an object map", 400);
+      }
+      return parsed;
+    } catch (error) {
+      throw new AppError("privilegedGroup must be valid JSON object text", 400);
+    }
+  }
+  throw new AppError("privilegedGroup must be an object map", 400);
+};
+
 const uploadAndAnalyzeDataset = async (req, res) => {
   const filePath = req.file?.path;
   try {
     const targetColumn = req.body.targetColumn;
     const sensitiveAttributes = parseSensitiveAttributes(req.body.sensitiveAttributes);
     const positiveOutcome = req.body.positiveOutcome;
+    const privilegedGroup = parsePrivilegedGroup(req.body.privilegedGroup);
 
     const analysis = await runDatasetAnalysis({
       file: req.file,
       targetColumn,
       sensitiveAttributes,
-      positiveOutcome
+      positiveOutcome,
+      privilegedGroup
     });
 
     return sendSuccess(res, analysis, "Dataset uploaded and analyzed successfully", 201);

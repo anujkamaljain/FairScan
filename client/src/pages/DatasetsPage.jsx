@@ -15,11 +15,11 @@ import RiskBadge from '../components/common/RiskBadge'
 import apiFetch from '../lib/api'
 const workflowSteps = ['Upload', 'Analyze', 'Explain', 'Apply Fix', 'Compare']
 const pageCardClass =
-  'rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
+  'card-scroll rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
 const statCardClass =
-  'rounded-2xl border border-gray-200/80 bg-gray-50 p-5 shadow-sm transition-all duration-200 hover:scale-[1.01] hover:shadow-md dark:border-gray-800 dark:bg-gray-900/80'
+  'card-scroll rounded-2xl border border-gray-200/80 bg-gray-50 p-5 shadow-sm transition-all duration-200 hover:scale-[1.01] hover:shadow-md dark:border-gray-800 dark:bg-gray-900/80'
 const subCardClass =
-  'rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900'
+  'card-scroll rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900'
 const inputClass =
   'rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'
 const primaryButtonClass =
@@ -45,6 +45,7 @@ function DatasetsPage() {
   const [fixFeature, setFixFeature] = useState('')
   const [fixMethod, setFixMethod] = useState('oversample')
   const [isApplyingFix, setIsApplyingFix] = useState(false)
+  const [isDownloadingFixedDataset, setIsDownloadingFixedDataset] = useState(false)
   const [fixResult, setFixResult] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -219,6 +220,46 @@ function DatasetsPage() {
     }
   }
 
+  const downloadFixedDataset = async () => {
+    const fixedDatasetId = fixResult?.fixed_dataset?.id
+    if (!fixedDatasetId) {
+      setError('Fixed dataset is unavailable for download.')
+      return
+    }
+
+    setIsDownloadingFixedDataset(true)
+    setError('')
+    try {
+      const response = await apiFetch(`/bias/fixed-datasets/${fixedDatasetId}/download`)
+      if (!response.ok) {
+        let message = 'Failed to download fixed dataset'
+        try {
+          const payload = await response.json()
+          message = payload?.message || message
+        } catch {
+          // Response may be non-JSON on certain proxies/errors.
+        }
+        throw new Error(message)
+      }
+
+      const blob = await response.blob()
+      const downloadName = fixResult?.fixed_dataset?.name || 'fixed-dataset.csv'
+      const objectUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = downloadName
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+      setSuccessMessage('Fixed dataset downloaded.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsDownloadingFixedDataset(false)
+    }
+  }
+
   const comparisonChartData = fixResult
     ? [
         { name: 'Before', score: Number(fixResult.before?.bias_score || 0) },
@@ -334,8 +375,12 @@ function DatasetsPage() {
           </button>
         </form>
 
-        {error && <InlineAlert tone="error" title="Action failed">{error}</InlineAlert>}
-        {successMessage && <InlineAlert tone="success">{successMessage}</InlineAlert>}
+        {(error || successMessage) && (
+          <div className="mt-4 space-y-3">
+            {error && <InlineAlert tone="error" title="Action failed">{error}</InlineAlert>}
+            {successMessage && <InlineAlert tone="success">{successMessage}</InlineAlert>}
+          </div>
+        )}
       </div>
 
       {isSubmitting && !result && (
@@ -533,6 +578,21 @@ function DatasetsPage() {
                     <RiskBadge level={fixEffectiveness} />
                   </div>
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{fixResult.applied_fix?.description}</p>
+                  {fixResult.fixed_dataset?.id && (
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={downloadFixedDataset}
+                        disabled={isDownloadingFixedDataset}
+                        className={secondaryButtonClass}
+                      >
+                        {isDownloadingFixedDataset ? 'Downloading...' : 'Download Fixed Dataset'}
+                      </button>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {fixResult.fixed_dataset?.row_count || 0} rows ready in CSV format
+                      </p>
+                    </div>
+                  )}
                   {fixResult.warning && (
                     <p className="mt-2 rounded bg-amber-100 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                       {String(fixResult.warning).toLowerCase().includes('no measurable improvement')

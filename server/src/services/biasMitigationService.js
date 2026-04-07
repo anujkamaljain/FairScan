@@ -1,3 +1,6 @@
+const fs = require("fs/promises");
+const os = require("os");
+const path = require("path");
 const mongoose = require("mongoose");
 const AppError = require("../utils/appError");
 const Dataset = require("../models/Dataset");
@@ -6,7 +9,7 @@ const ModelAuditLog = require("../models/ModelAuditLog");
 const env = require("../config/env");
 const { analyzeBias } = require("./biasAnalysisService");
 const { parseDatasetBuffer } = require("./datasetIngestionService");
-const { downloadDatasetFileFromGcs } = require("./gcsStorageService");
+const { downloadDatasetFileFromGcs, isGcsEnabled, uploadDatasetFileToGcs } = require("./gcsStorageService");
 const { normalizeCategorical } = require("../utils/fairnessUtils");
 
 const computeCompositeBiasScore = (analysis) => {
@@ -56,6 +59,98 @@ const parseAnalysisContext = async (datasetDoc) => {
 };
 
 const cloneRows = (rows) => rows.map((row) => ({ ...row }));
+
+const csvEscape = (value) => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  const text = String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, "\"\"")}"`;
+  }
+  return text;
+};
+
+const rowsToCsvBuffer = (rows) => {
+  const columns = Object.keys(rows[0] || {});
+  const header = columns.map((column) => csvEscape(column)).join(",");
+  const lines = rows.map((row) => columns.map((column) => csvEscape(row[column])).join(","));
+  return Buffer.from([header, ...lines].join("\n"), "utf-8");
+};
+
+const persistMitigatedDataset = async ({
+  mitigatedRows,
+  actorId,
+  sourceDataset,
+  fixType,
+  config,
+  targetColumn,
+  sensitiveAttributes
+}) => {
+  const now = Date.now();
+  const safeBaseName = String(sourceDataset?.name || "dataset")
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^\w.-]/g, "_");
+  const fileName = `${safeBaseName}-fixed-${String(fixType || "mitigation").toLowerCase()}-${now}.csv`;
+  const csvBuffer = rowsToCsvBuffer(mitigatedRows);
+
+  let fileStorage = {
+    provider: "local",
+    sizeBytes: csvBuffer.length,
+    uploadedAt: new Date()
+  };
+
+  if (isGcsEnabled()) {
+    const tempPath = path.join(os.tmpdir(), `fairscan-fixed-${now}.csv`);
+    await fs.writeFile(tempPath, csvBuffer);
+    try {
+      const uploaded = await uploadDatasetFileToGcs({
+        path: tempPath,
+        originalname: fileName,
+        mimetype: "text/csv",
+        size: csvBuffer.length
+      });
+      fileStorage = uploaded;
+    } finally {
+      await fs.unlink(tempPath).catch(() => {});
+    }
+  }
+
+  const persistSnapshot = fileStorage.provider !== "gcs";
+  const columns = Object.keys(mitigatedRows[0] || {});
+  const createdDataset = await Dataset.create({
+    name: fileName,
+    description: "Mitigated dataset generated from Apply Fix flow",
+    sourceType: "api",
+    status: "ready",
+    ownerId: actorId || undefined,
+    rowCount: mitigatedRows.length,
+    metadata: {
+      columns,
+      generated_by_mitigation: true,
+      parent_dataset_id: sourceDataset?._id,
+      fix_type: fixType,
+      fix_config: config,
+      snapshot_persisted: persistSnapshot,
+      analysis_context: {
+        target_column: targetColumn,
+        sensitive_attributes: sensitiveAttributes
+      }
+    },
+    fileName,
+    fileType: "text/csv",
+    fileStorage,
+    dataSnapshot: persistSnapshot ? mitigatedRows : []
+  });
+
+  return {
+    id: createdDataset._id,
+    name: fileName,
+    row_count: mitigatedRows.length,
+    format: "csv",
+    download_path: `/api/v1/bias/fixed-datasets/${createdDataset._id}/download`
+  };
+};
 
 const loadDatasetRows = async (datasetDoc) => {
   if (Array.isArray(datasetDoc.dataSnapshot) && datasetDoc.dataSnapshot.length) {
@@ -249,6 +344,16 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
     description: buildFixDescription(fixType, config, primarySensitiveAttr)
   };
 
+  const fixedDataset = await persistMitigatedDataset({
+    mitigatedRows,
+    actorId,
+    sourceDataset: datasetDoc,
+    fixType,
+    config,
+    targetColumn,
+    sensitiveAttributes
+  });
+
   const response = {
     before: {
       bias_score: beforeScore,
@@ -265,6 +370,7 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
       percentage_change: percentageChange
     },
     applied_fix: appliedFix,
+    fixed_dataset: fixedDataset,
     warning,
     details: {
       before_metrics: beforeAnalysis.bias_metrics,
@@ -291,6 +397,41 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
   };
 };
 
+const getFixedDatasetDownload = async ({ datasetId, actorId }) => {
+  if (!datasetId) {
+    throw new AppError("datasetId is required", 400);
+  }
+  if (!actorId) {
+    throw new AppError("Authenticated user context is required", 401);
+  }
+
+  const fixedDataset = await Dataset.findOne({
+    _id: datasetId,
+    ownerId: actorId,
+    "metadata.generated_by_mitigation": true
+  }).lean();
+
+  if (!fixedDataset) {
+    throw new AppError("Fixed dataset not found", 404);
+  }
+
+  let buffer;
+  if (fixedDataset.fileStorage?.provider === "gcs" && fixedDataset.fileStorage.objectPath) {
+    buffer = await downloadDatasetFileFromGcs(fixedDataset.fileStorage);
+  } else if (Array.isArray(fixedDataset.dataSnapshot) && fixedDataset.dataSnapshot.length) {
+    buffer = rowsToCsvBuffer(fixedDataset.dataSnapshot);
+  } else {
+    throw new AppError("Fixed dataset content is unavailable", 404);
+  }
+
+  return {
+    buffer,
+    fileName: fixedDataset.fileName || "fixed-dataset.csv",
+    contentType: fixedDataset.fileType || "text/csv"
+  };
+};
+
 module.exports = {
-  applyBiasFix
+  applyBiasFix,
+  getFixedDatasetDownload
 };

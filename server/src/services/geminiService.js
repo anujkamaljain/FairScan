@@ -26,6 +26,17 @@ const withTimeout = async (promise, timeoutMs) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Timeouts, 503s, and overload messages warrant longer backoff between retries. */
+const isTransientGeminiFailure = (error) => {
+  const msg = String(error?.message || "").toLowerCase();
+  const status = error?.status ?? error?.statusCode ?? error?.code ?? error?.cause?.status ?? error?.cause?.code;
+  if (msg.includes("timed out")) return true;
+  if (status === 503 || status === 429) return true;
+  return (
+    msg.includes("unavailable") || msg.includes("high demand") || msg.includes("try again later")
+  );
+};
+
 const emitFallbackAlert = async ({ operation, reason }) => {
   if (!env.geminiAlertWebhookUrl) return;
   let timeout;
@@ -102,6 +113,10 @@ const runGeminiStructured = async ({ operation, inputJson, instructions, fallbac
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
+        const perAttemptTimeoutMs = Math.min(
+          120000,
+          env.geminiTimeoutMs + (attempt - 1) * 15000
+        );
         const response = await withTimeout(
           ai.models.generateContent({
             model: env.geminiModel,
@@ -114,7 +129,7 @@ const runGeminiStructured = async ({ operation, inputJson, instructions, fallbac
               responseMimeType: "application/json"
             }
           }),
-          env.geminiTimeoutMs
+          perAttemptTimeoutMs
         );
 
         const text = response.text || "";
@@ -128,7 +143,10 @@ const runGeminiStructured = async ({ operation, inputJson, instructions, fallbac
       }
 
       if (attempt < 3) {
-        await sleep(350 * attempt);
+        const backoffMs = isTransientGeminiFailure(lastError)
+          ? Math.min(10000, 1500 * 2 ** (attempt - 1))
+          : 350 * attempt;
+        await sleep(backoffMs);
       }
     }
 

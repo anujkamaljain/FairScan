@@ -6,11 +6,11 @@ import RiskBadge from '../components/common/RiskBadge'
 import apiFetch from '../lib/api'
 const workflowSteps = ['Input', 'Predict', 'Bias', 'Explanation']
 const pageCardClass =
-  'rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
+  'card-scroll rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
 const subCardClass =
-  'rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900'
+  'card-scroll rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900'
 const tileCardClass =
-  'rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950'
+  'card-scroll rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950'
 const inputClass =
   'rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'
 const primaryButtonClass =
@@ -105,9 +105,9 @@ function RealtimeAuditPage() {
         throw new Error(payload?.message || 'Realtime prediction audit failed')
       }
       setResult(payload.data)
-      setSuccessMessage('Prediction completed. Bias risk and explanation are ready below.')
-      await fetchRealtimeExplanation(payload.data)
-      await fetchRecentLogs()
+      setSuccessMessage('Prediction completed. Generating explanation...')
+      void fetchRealtimeExplanation(payload.data)
+      void fetchRecentLogs()
     } catch (submitError) {
       setError(submitError.message)
     } finally {
@@ -129,7 +129,7 @@ function RealtimeAuditPage() {
         throw new Error(payload?.message || 'Failed to generate realtime explanation')
       }
       setExplanation(payload.data)
-      setSuccessMessage('Explanation updated.')
+      setSuccessMessage('Explanation ready.')
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -234,8 +234,12 @@ function RealtimeAuditPage() {
           </button>
         </form>
 
-        {error && <InlineAlert tone="error" title="Action failed">{error}</InlineAlert>}
-        {successMessage && <InlineAlert tone="success">{successMessage}</InlineAlert>}
+        {(error || successMessage) && (
+          <div className="mt-4 space-y-3">
+            {error && <InlineAlert tone="error" title="Action failed">{error}</InlineAlert>}
+            {successMessage && <InlineAlert tone="success">{successMessage}</InlineAlert>}
+          </div>
+        )}
       </article>
 
       {isSubmitting && !result && (

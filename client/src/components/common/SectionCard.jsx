@@ -1,7 +1,7 @@
 function SectionCard({ title, description, actions, className = '', children }) {
   return (
     <article
-      className={`rounded-2xl border border-gray-200/80 bg-white/90 p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/90 ${className}`}
+      className={`card-scroll rounded-2xl border border-gray-200/80 bg-white/90 p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900/90 ${className}`}
     >
       {(title || description || actions) && (
         <div className="flex items-start justify-between gap-4">

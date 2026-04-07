@@ -1,6 +1,6 @@
 function EmptyStateCard({ icon = '○', title, description, hint, action }) {
   return (
-    <article className="rounded-2xl border border-dashed border-gray-300/80 bg-white/70 p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
+    <article className="card-scroll rounded-2xl border border-dashed border-gray-300/80 bg-white/70 p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/15 text-xl text-indigo-400">
         <span aria-hidden="true">{icon}</span>
       </div>

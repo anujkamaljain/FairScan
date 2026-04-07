@@ -41,7 +41,8 @@ const env = {
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-pro",
-  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS) || 12000,
+  // Default 45s: 12s was too aggressive under load (Gemini often slower than Vertex REST timeout).
+  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS) || 45000,
   geminiAlertWebhookUrl: process.env.GEMINI_ALERT_WEBHOOK_URL || "",
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || "",
   datasetStorageProvider,

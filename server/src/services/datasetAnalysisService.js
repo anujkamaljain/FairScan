@@ -23,10 +23,15 @@ const saveAnalysisRecords = async ({ file, ingestion, analysis, targetColumn, se
     metadata: {
       columns: ingestion.columns,
       missing_values: ingestion.summary.missing_values,
-      mixed_type_columns: ingestion.summary.mixed_type_columns
+      mixed_type_columns: ingestion.summary.mixed_type_columns,
+      analysis_context: {
+        target_column: targetColumn,
+        sensitive_attributes: sensitiveAttributes
+      }
     },
     fileName: file.filename,
-    fileType: file.mimetype || "unknown"
+    fileType: file.mimetype || "unknown",
+    dataSnapshot: ingestion.rows
   });
 
   const reportDoc = await BiasReport.create({

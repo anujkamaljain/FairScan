@@ -38,6 +38,10 @@ const datasetSchema = new mongoose.Schema(
     },
     fileType: {
       type: String
+    },
+    dataSnapshot: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: []
     }
   },
   { timestamps: true }

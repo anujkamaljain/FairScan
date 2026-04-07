@@ -8,7 +8,7 @@ function NotFoundPage() {
         The route you requested does not exist in this environment.
       </p>
       <Link
-        to="/"
+        to="/dashboard"
         className="mt-4 inline-flex rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600"
       >
         Return to dashboard

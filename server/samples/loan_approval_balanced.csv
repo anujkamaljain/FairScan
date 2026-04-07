@@ -1,0 +1,13 @@
+gender,age_group,zipcode,income,approved
+male,18-25,10010,42000,yes
+male,18-25,10011,39000,no
+female,18-25,10010,42000,yes
+female,18-25,10011,39000,no
+male,26-35,10012,56000,yes
+male,26-35,10013,51000,no
+female,26-35,10012,56000,yes
+female,26-35,10013,51000,no
+male,36-45,10014,61000,yes
+male,36-45,10015,46000,no
+female,36-45,10014,61000,yes
+female,36-45,10015,46000,no

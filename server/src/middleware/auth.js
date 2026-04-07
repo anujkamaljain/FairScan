@@ -2,11 +2,15 @@ const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 const { sendError } = require("../utils/apiResponse");
 
-const authMiddleware = (req, res, next) => {
+const buildAuthMiddleware = (required = true) => (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
   if (!token) {
+    if (!required) {
+      req.user = null;
+      return next();
+    }
     return sendError(res, "Authentication token missing", 401);
   }
 
@@ -15,8 +19,16 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded;
     return next();
   } catch (error) {
+    if (!required) {
+      req.user = null;
+      return next();
+    }
     return sendError(res, "Invalid or expired token", 401);
   }
 };
 
-module.exports = authMiddleware;
+module.exports = {
+  requireAuth: buildAuthMiddleware(true),
+  optionalAuth: buildAuthMiddleware(false),
+  buildAuthMiddleware
+};

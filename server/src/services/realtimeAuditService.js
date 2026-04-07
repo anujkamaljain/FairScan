@@ -34,9 +34,9 @@ const listRecentRealtimeAuditLogs = async (limit = 10) => {
     .lean();
 
   return docs.map((doc) => ({
+    ...doc.details,
     id: doc._id,
-    createdAt: doc.createdAt,
-    ...doc.details
+    createdAt: doc.createdAt
   }));
 };
 

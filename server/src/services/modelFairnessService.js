@@ -160,9 +160,18 @@ const evaluateModelFairness = async ({
   };
   const privilegedGroupUsed = {};
 
-  let totalTP = 0;
-  let totalTN = 0;
-  let totalCount = 0;
+  let overallTP = 0;
+  let overallTN = 0;
+  workingRows.forEach((row) => {
+    const truthPos = isPositiveOutcome(row.groundTruth);
+    const predPos = isPositiveOutcome(row.prediction);
+    if (truthPos && predPos) overallTP += 1;
+    else if (!truthPos && !predPos) overallTN += 1;
+  });
+  const overallAccuracy =
+    workingRows.length > 0
+      ? Number(((overallTP + overallTN) / workingRows.length).toFixed(4))
+      : 0;
 
   sensitiveAttributes.forEach((sensitiveAttr) => {
     const matricesByGroup = computeConfusionMatrixByGroup(workingRows, sensitiveAttr, isPositiveOutcome);
@@ -180,10 +189,6 @@ const evaluateModelFairness = async ({
       tprByGroup[group] = Number(computeTruePositiveRate(matrix).toFixed(4));
       precisionByGroup[group] = Number(computePrecision(matrix).toFixed(4));
       groupAccuracies[group] = Number(computeGroupAccuracy(matrix).toFixed(4));
-
-      totalTP += matrix.TP;
-      totalTN += matrix.TN;
-      totalCount += matrix.total;
     });
 
     const eoDiff = computeEqualOpportunityDifference(tprByGroup);
@@ -222,7 +227,6 @@ const evaluateModelFairness = async ({
     fairnessMetrics.fnr_by_group[sensitiveAttr]._max_difference = fnrDiff.maxDifference;
   });
 
-  const overallAccuracy = totalCount > 0 ? Number(((totalTP + totalTN) / totalCount).toFixed(4)) : 0;
   accuracyMetrics.overall_accuracy = overallAccuracy;
   fairnessVsAccuracy.overall_accuracy = overallAccuracy;
   fairnessVsAccuracy.disparity_score = Number(fairnessVsAccuracy.disparity_score.toFixed(4));
@@ -278,6 +282,7 @@ const saveModelAuditLog = async ({ result, metadata }) => {
     action: "model_fairness_evaluation",
     targetType: "model",
     targetId: metadata?.targetId || "model-evaluator",
+    actorId: metadata?.actorId || null,
     details: {
       metrics: result.fairness_metrics,
       accuracy_metrics: result.accuracy_metrics,

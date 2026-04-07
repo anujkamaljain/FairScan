@@ -23,7 +23,8 @@ const evaluateModel = async (req, res) => {
   const audit = await saveModelAuditLog({
     result,
     metadata: {
-      inputSize: Array.isArray(predictions) ? predictions.length : 0
+      inputSize: Array.isArray(predictions) ? predictions.length : 0,
+      actorId: req.user?.sub || req.user?.id || null
     }
   });
 

@@ -8,14 +8,31 @@ registerAuditProcessor(async (payload) => {
   await persistRealtimeAuditLog(payload);
 });
 
+const normalizePrediction = (prediction) => {
+  if (!prediction || typeof prediction !== "object") {
+    return { label: "rejected", score: 0 };
+  }
+  if (prediction.label !== undefined || prediction.score !== undefined) {
+    return {
+      label: prediction.label || "rejected",
+      score: Number(prediction.score || 0)
+    };
+  }
+  return {
+    label: prediction.prediction || "rejected",
+    score: Number(prediction.confidence || 0)
+  };
+};
+
 const predictWithAudit = async (req, res) => {
   const { inputData, sensitiveAttributes, modelConfig = { type: "mock" } } = req.body || {};
 
-  const prediction = await predict(inputData, modelConfig);
+  const inferencePrediction = await predict(inputData, modelConfig);
+  const prediction = normalizePrediction(inferencePrediction);
   const biasCheck = await evaluateRealtimeBias({
     inputData,
     sensitiveAttributes,
-    basePrediction: prediction,
+    basePrediction: inferencePrediction,
     predictFn: predict,
     modelConfig
   });
@@ -24,6 +41,7 @@ const predictWithAudit = async (req, res) => {
     input: inputData,
     prediction,
     bias_risk: biasCheck.bias_risk,
+    reason_code: biasCheck.reason_code,
     delta_score: biasCheck.delta_score,
     counterfactual_results: biasCheck.counterfactual_results,
     sensitive_attributes: sensitiveAttributes,
@@ -36,6 +54,7 @@ const predictWithAudit = async (req, res) => {
     {
       prediction,
       bias_risk: biasCheck.bias_risk,
+      reason_code: biasCheck.reason_code,
       explanation_hint: biasCheck.explanation_hint,
       delta_score: biasCheck.delta_score,
       counterfactual_results: biasCheck.counterfactual_results

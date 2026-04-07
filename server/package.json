@@ -1,7 +1,7 @@
 {
-  "name": "server",
+  "name": "fairscan-server",
   "version": "1.0.0",
-  "description": "FairSight AI backend API",
+  "description": "FairScan AI backend API — fairness auditing platform",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
@@ -14,6 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/genai": "^1.48.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "csv-parse": "^6.2.1",

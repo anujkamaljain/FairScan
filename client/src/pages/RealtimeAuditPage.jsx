@@ -1,6 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1'
+import { Link } from 'react-router-dom'
+import EmptyStateCard from '../components/common/EmptyStateCard'
+import InlineAlert from '../components/common/InlineAlert'
+import RiskBadge from '../components/common/RiskBadge'
+import apiFetch from '../lib/api'
+const workflowSteps = ['Input', 'Predict', 'Bias', 'Explanation']
+const pageCardClass =
+  'rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
+const subCardClass =
+  'rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900'
+const tileCardClass =
+  'rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950'
+const inputClass =
+  'rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 transition-all duration-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100'
+const primaryButtonClass =
+  'inline-flex w-fit rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:scale-[1.01] hover:bg-indigo-600 disabled:opacity-50'
+const secondaryButtonClass =
+  'rounded-xl border border-indigo-400 px-4 py-2 text-sm font-medium text-indigo-600 transition-all duration-200 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-500 dark:text-indigo-300 dark:hover:bg-gray-800'
+const errorClass =
+  'mt-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-300'
 
 const defaultJsonInput = `{
   "income": 62000,
@@ -10,12 +28,6 @@ const defaultJsonInput = `{
   "age_group": "26-35"
 }`
 
-const riskBadgeStyles = {
-  LOW: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-  MEDIUM: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-  HIGH: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-}
-
 function RealtimeAuditPage() {
   const [jsonInput, setJsonInput] = useState(defaultJsonInput)
   const [sensitiveAttributesInput, setSensitiveAttributesInput] = useState('gender,age_group')
@@ -24,6 +36,12 @@ function RealtimeAuditPage() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [recentLogs, setRecentLogs] = useState([])
+  const [explanation, setExplanation] = useState(null)
+  const [report, setReport] = useState(null)
+  const [isExplaining, setIsExplaining] = useState(false)
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   const parsedInputPreview = useMemo(() => {
     try {
@@ -35,14 +53,17 @@ function RealtimeAuditPage() {
   }, [jsonInput])
 
   const fetchRecentLogs = async () => {
+    setLogsLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/predict-with-audit/logs`)
+      const response = await apiFetch('/predict-with-audit/logs')
       const payload = await response.json()
       if (response.ok) {
         setRecentLogs(payload?.data?.logs || [])
       }
     } catch {
       setRecentLogs([])
+    } finally {
+      setLogsLoading(false)
     }
   }
 
@@ -53,7 +74,10 @@ function RealtimeAuditPage() {
   const onSubmit = async (event) => {
     event.preventDefault()
     setError('')
+    setSuccessMessage('')
     setIsSubmitting(true)
+    setExplanation(null)
+    setReport(null)
     try {
       const inputData = JSON.parse(jsonInput)
       if (!inputData || typeof inputData !== 'object' || Array.isArray(inputData)) {
@@ -67,7 +91,7 @@ function RealtimeAuditPage() {
         throw new Error('Provide at least one sensitive attribute')
       }
 
-      const response = await fetch(`${API_BASE_URL}/predict-with-audit`, {
+      const response = await apiFetch('/predict-with-audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -81,6 +105,8 @@ function RealtimeAuditPage() {
         throw new Error(payload?.message || 'Realtime prediction audit failed')
       }
       setResult(payload.data)
+      setSuccessMessage('Prediction completed. Bias risk and explanation are ready below.')
+      await fetchRealtimeExplanation(payload.data)
       await fetchRecentLogs()
     } catch (submitError) {
       setError(submitError.message)
@@ -89,42 +115,109 @@ function RealtimeAuditPage() {
     }
   }
 
+  const fetchRealtimeExplanation = async (realtimeData) => {
+    setIsExplaining(true)
+    setError('')
+    try {
+      const response = await apiFetch('/explain/realtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(realtimeData)
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to generate realtime explanation')
+      }
+      setExplanation(payload.data)
+      setSuccessMessage('Explanation updated.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsExplaining(false)
+    }
+  }
+
+  const generateReport = async () => {
+    if (!result) return
+    setIsGeneratingReport(true)
+    setError('')
+    try {
+      const response = await apiFetch('/report/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_type: 'realtime', payload: result })
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to generate report')
+      }
+      setReport(payload.data?.sections || null)
+      setSuccessMessage('Report generated successfully.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsGeneratingReport(false)
+    }
+  }
+
   return (
-    <section className="space-y-6">
-      <article className="rounded-xl border border-slate-200 bg-slate-50 p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Realtime Bias-Aware Prediction</h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+    <section className="space-y-8">
+      <article className={pageCardClass}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-500 dark:text-indigo-400">Realtime Flow</p>
+            <h2 className="mt-2 text-3xl font-semibold text-gray-900 dark:text-gray-100">Realtime Bias-Aware Prediction</h2>
+          </div>
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+            Live-ready
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
           Run prediction and counterfactual sensitivity checks in a single API call.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {workflowSteps.map((step, idx) => (
+            <span
+              key={step}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                idx === 1
+                  ? 'bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-400/30'
+                  : 'bg-gray-200/70 text-gray-600 ring-1 ring-gray-300/80 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700'
+              }`}
+            >
+              {idx + 1}. {step}
+            </span>
+          ))}
+        </div>
 
         <form className="mt-5 grid gap-4" onSubmit={onSubmit}>
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-slate-700 dark:text-slate-200">Input JSON</span>
+            <span className="font-medium text-gray-700 dark:text-gray-200">Input JSON</span>
             <textarea
               value={jsonInput}
               onChange={(event) => setJsonInput(event.target.value)}
               rows={10}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              className={`font-mono text-xs ${inputClass}`}
             />
           </label>
 
           <div className="grid gap-4 md:grid-cols-3">
             <label className="flex flex-col gap-2 text-sm md:col-span-2">
-              <span className="font-medium text-slate-700 dark:text-slate-200">Sensitive attributes</span>
+              <span className="font-medium text-gray-700 dark:text-gray-200">Sensitive attributes</span>
               <input
                 value={sensitiveAttributesInput}
                 onChange={(event) => setSensitiveAttributesInput(event.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className={inputClass}
                 placeholder="gender,age_group"
               />
             </label>
 
             <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium text-slate-700 dark:text-slate-200">Model type</span>
+              <span className="font-medium text-gray-700 dark:text-gray-200">Model type</span>
               <select
                 value={modelType}
                 onChange={(event) => setModelType(event.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className={inputClass}
               >
                 <option value="mock">mock</option>
                 <option value="vertex">vertex</option>
@@ -135,57 +228,78 @@ function RealtimeAuditPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex w-fit rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 disabled:opacity-50"
+            className={`${primaryButtonClass} w-full justify-center md:w-fit`}
           >
             {isSubmitting ? 'Evaluating...' : 'Predict With Audit'}
           </button>
         </form>
 
-        {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-            {error}
-          </div>
-        )}
+        {error && <InlineAlert tone="error" title="Action failed">{error}</InlineAlert>}
+        {successMessage && <InlineAlert tone="success">{successMessage}</InlineAlert>}
       </article>
 
+      {isSubmitting && !result && (
+        <article className={subCardClass}>
+          <div className="h-28 animate-pulse rounded-xl bg-gray-200/70 dark:bg-gray-800/70" />
+        </article>
+      )}
+
+      {!result && (
+        <EmptyStateCard
+          icon="⚡"
+          title="Run a prediction to see real-time audit"
+          description="Submit input JSON and sensitive attributes to evaluate fairness on the fly."
+          hint="Use the sample JSON as a starting point, then test with your own records."
+          action={
+            <Link
+              to="/dashboard"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              Back to Dashboard
+            </Link>
+          }
+        />
+      )}
+
       {parsedInputPreview && (
-        <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Input preview</h3>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <article className={subCardClass}>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Input preview</h3>
+          <pre className="mt-3 overflow-x-auto rounded-xl bg-gray-100 p-3 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200">
             {JSON.stringify(parsedInputPreview, null, 2)}
           </pre>
         </article>
       )}
 
       {result && (
-        <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Realtime Audit Result</h3>
+        <article className={subCardClass}>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Realtime Audit Result</h3>
           <div className="mt-3 grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Prediction label</p>
-              <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <div className={tileCardClass}>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Prediction label</p>
+              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 {result.prediction?.label}
               </p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Prediction score</p>
-              <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <div className={tileCardClass}>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Prediction score</p>
+              <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 {Number(result.prediction?.score ?? 0).toFixed(4)}
               </p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Bias risk</p>
-              <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${riskBadgeStyles[result.bias_risk]}`}>
-                {result.bias_risk}
-              </span>
+            <div className={tileCardClass}>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bias risk</p>
+              <RiskBadge level={result.bias_risk} className="mt-1" />
             </div>
           </div>
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{result.explanation_hint}</p>
+          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{result.explanation_hint}</p>
+          <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+            reason_code: {result.reason_code || 'NONE'}
+          </p>
 
           <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm text-slate-700 dark:text-slate-200">
+            <table className="min-w-full text-left text-sm text-gray-700 dark:text-gray-200">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <tr className="border-b border-gray-200 text-gray-500 dark:border-gray-700 dark:text-gray-400">
                   <th className="px-2 py-2">Attribute</th>
                   <th className="px-2 py-2">Original</th>
                   <th className="px-2 py-2">Counterfactual</th>
@@ -197,7 +311,7 @@ function RealtimeAuditPage() {
                 {(result.counterfactual_results || []).map((item) => (
                   <tr
                     key={`${item.sensitive_attribute}-${item.counterfactual_value}`}
-                    className="border-b border-slate-100 dark:border-slate-800"
+                    className="border-b border-gray-100 dark:border-gray-800"
                   >
                     <td className="px-2 py-2">{item.sensitive_attribute}</td>
                     <td className="px-2 py-2">{String(item.original_value)}</td>
@@ -212,28 +326,104 @@ function RealtimeAuditPage() {
         </article>
       )}
 
-      <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
-        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Recent Logs (Last 10)</h3>
+      {result && (
+        <article className={subCardClass}>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => fetchRealtimeExplanation(result)}
+              disabled={isExplaining}
+              className={primaryButtonClass}
+            >
+              {isExplaining ? 'Explaining...' : 'Explain'}
+            </button>
+            <button
+              type="button"
+              onClick={generateReport}
+              disabled={isGeneratingReport}
+              className={secondaryButtonClass}
+            >
+              {isGeneratingReport ? 'Generating Report...' : 'Generate Report'}
+            </button>
+          </div>
+
+          {explanation && (
+            <div className="mt-4 space-y-2">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                Why this decision may be biased
+              </h4>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{explanation.explanation}</p>
+              <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">
+                {(explanation.summary_points || []).map((point, idx) => (
+                  <li key={`sp-${idx}`}>{point}</li>
+                ))}
+              </ul>
+              {Array.isArray(explanation.suggestions) && explanation.suggestions.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Suggestions</p>
+                  <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">
+                    {explanation.suggestions.map((item, index) => (
+                      <li key={`${item.type}-${index}`}>
+                        <span className="font-medium">{item.type}:</span> {item.explanation}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {report && (
+            <div className="mt-4 space-y-2 border-t border-gray-200 pt-4 dark:border-gray-700">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Report</h4>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{report.overview}</p>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Key Findings</p>
+                <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">
+                  {(report.key_findings || []).map((point, idx) => (
+                    <li key={`kf-${idx}`}>{point}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">Risk Assessment:</span>{' '}
+                {report.risk_assessment}
+              </p>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Recommendations</p>
+                <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300">
+                  {(report.recommendations || []).map((point, idx) => (
+                    <li key={`rec-${idx}`}>{point}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </article>
+      )}
+
+      <article className={subCardClass}>
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Recent Logs (Last 10)</h3>
         <div className="mt-3 space-y-2">
-          {recentLogs.length ? (
+          {logsLoading ? (
+            <div className="h-20 animate-pulse rounded-xl bg-gray-200/70 dark:bg-gray-800/70" />
+          ) : recentLogs.length ? (
             recentLogs.map((log) => (
               <div
                 key={log.id}
-                className="rounded-lg border border-slate-200 bg-white p-3 text-sm transition-colors dark:border-slate-700 dark:bg-slate-950"
+                className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm transition-all duration-200 hover:shadow-md dark:border-gray-700 dark:bg-gray-950"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{log.prediction?.label}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${riskBadgeStyles[log.bias_risk]}`}>
-                    {log.bias_risk}
-                  </span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{log.prediction?.label}</span>
+                  <RiskBadge level={log.bias_risk} />
                 </div>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   {new Date(log.createdAt).toLocaleString()} | score {Number(log.prediction?.score || 0).toFixed(4)}
                 </p>
               </div>
             ))
           ) : (
-            <p className="text-sm text-slate-600 dark:text-slate-300">No realtime audit logs yet.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">No data available yet</p>
           )}
         </div>
       </article>

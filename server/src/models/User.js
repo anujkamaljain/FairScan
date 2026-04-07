@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    fullName: {
+    name: {
       type: String,
       required: true,
       trim: true
@@ -14,25 +14,16 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true
     },
-    passwordHash: {
+    password: {
       type: String,
-      required: true
+      required: true,
+      minlength: 6,
+      select: false
     },
     role: {
       type: String,
-      enum: ["admin", "auditor", "analyst"],
-      default: "analyst"
-    },
-    organization: {
-      type: String,
-      trim: true
-    },
-    isActive: {
-      type: Boolean,
-      default: true
-    },
-    lastLoginAt: {
-      type: Date
+      enum: ["user", "admin"],
+      default: "user"
     }
   },
   { timestamps: true }

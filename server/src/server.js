@@ -26,9 +26,19 @@ const startServer = async () => {
 
 startServer();
 
+const mongoose = require("mongoose");
+
 const shutdown = (signal) => {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    try {
+      await mongoose.disconnect();
+      logger.info("MongoDB disconnected");
+    } catch (err) {
+      logger.error("Error disconnecting MongoDB", { error: err.message });
+    }
+    process.exit(0);
+  });
 };
 
 process.on("SIGINT", () => shutdown("SIGINT"));

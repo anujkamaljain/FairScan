@@ -16,10 +16,18 @@ _SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 class VertexClient:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.credentials, self.auth_mode = self._build_credentials()
+        self.credentials = None
+        self.auth_mode = "none"
+        try:
+            self.credentials, self.auth_mode = self._build_credentials()
+        except Exception:
+            self.auth_mode = "unavailable"
+
+    @property
+    def available(self) -> bool:
+        return self.credentials is not None
 
     def _build_credentials(self):
-        # Priority 1: Explicit service account fields from environment.
         if (
             self.settings.google_cloud_private_key
             and self.settings.google_cloud_client_email
@@ -37,7 +45,6 @@ class VertexClient:
             creds = service_account.Credentials.from_service_account_info(info, scopes=_SCOPES)
             return creds, "env_service_account_fields"
 
-        # Priority 2/3: ADC from GOOGLE_APPLICATION_CREDENTIALS file or runtime identity.
         creds, _project = google_auth_default(scopes=_SCOPES)
         if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
             return creds, "adc_credentials_file"

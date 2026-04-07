@@ -1,6 +1,22 @@
 const AppError = require("../utils/appError");
 const { normalizeCategorical } = require("../utils/fairnessUtils");
 
+const normalizePredictionShape = (prediction) => {
+  if (!prediction || typeof prediction !== "object") {
+    return { label: "rejected", score: 0 };
+  }
+  if (prediction.label !== undefined || prediction.score !== undefined) {
+    return {
+      label: prediction.label || "rejected",
+      score: Number(prediction.score || 0)
+    };
+  }
+  return {
+    label: prediction.prediction || "rejected",
+    score: Number(prediction.confidence || 0)
+  };
+};
+
 const DEFAULT_ALTERNATIVES = {
   male: "female",
   female: "male",
@@ -41,6 +57,16 @@ const computeBiasRisk = ({ changedLabelCount, maxScoreDelta }) => {
   return "LOW";
 };
 
+const reasonCodeForBias = ({ changedLabelCount, maxScoreDelta }) => {
+  if (changedLabelCount > 0) {
+    return "COUNTERFACTUAL_FLIP";
+  }
+  if (maxScoreDelta >= 0.1) {
+    return "CONFIDENCE_SHIFT";
+  }
+  return "NONE";
+};
+
 const explanationForRisk = (risk) => {
   if (risk === "HIGH") {
     return "Sensitive attribute influenced outcome";
@@ -70,15 +96,17 @@ const evaluateRealtimeBias = async ({
   const counterfactualResults = [];
   let changedLabelCount = 0;
   let maxScoreDelta = 0;
+  const base = normalizePredictionShape(basePrediction);
 
   for (const attribute of sensitiveAttributes) {
     const originalValue = inputData[attribute];
     const counterfactualValue = deriveCounterfactualValue(originalValue);
     const scenarioInput = { ...inputData, [attribute]: counterfactualValue };
     const scenarioPrediction = await predictFn(scenarioInput, modelConfig);
+    const scenario = normalizePredictionShape(scenarioPrediction);
 
-    const deltaScore = Math.abs((scenarioPrediction.score ?? 0) - (basePrediction.score ?? 0));
-    const labelChanged = scenarioPrediction.label !== basePrediction.label;
+    const deltaScore = Math.abs((scenario.score ?? 0) - (base.score ?? 0));
+    const labelChanged = scenario.label !== base.label;
     if (labelChanged) {
       changedLabelCount += 1;
     }
@@ -88,17 +116,19 @@ const evaluateRealtimeBias = async ({
       sensitive_attribute: attribute,
       original_value: originalValue,
       counterfactual_value: counterfactualValue,
-      original_prediction: basePrediction,
-      counterfactual_prediction: scenarioPrediction,
+      original_prediction: base,
+      counterfactual_prediction: scenario,
       label_changed: labelChanged,
       score_delta: Number(deltaScore.toFixed(4))
     });
   }
 
   const biasRisk = computeBiasRisk({ changedLabelCount, maxScoreDelta });
+  const reasonCode = reasonCodeForBias({ changedLabelCount, maxScoreDelta });
 
   return {
     bias_risk: biasRisk,
+    reason_code: reasonCode,
     counterfactual_results: counterfactualResults,
     delta_score: Number(maxScoreDelta.toFixed(4)),
     explanation_hint: explanationForRisk(biasRisk)

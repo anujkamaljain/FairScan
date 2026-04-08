@@ -254,6 +254,67 @@ const buildFixDescription = (fixType, config, primarySensitiveAttr) => {
   return `Balanced '${primarySensitiveAttr}' groups using deterministic ${config.method || "oversample"} strategy.`;
 };
 
+const applyFixToRows = ({ rows, fixType, config, targetColumn, sensitiveAttributes, primarySensitiveAttr }) => {
+  let output = cloneRows(rows);
+  if (fixType === "REWEIGHT") {
+    output = reweightRows(output, primarySensitiveAttr);
+  } else if (fixType === "REMOVE_FEATURE") {
+    output = removeFeature(output, config.feature, targetColumn, sensitiveAttributes);
+  } else {
+    const method = config.method === "undersample" ? "undersample" : "oversample";
+    output = balanceRows(output, primarySensitiveAttr, method);
+  }
+  if (!output.length) {
+    throw new AppError("Mitigation produced an empty dataset", 400);
+  }
+  return output;
+};
+
+const scoreMitigationDelta = ({ beforeScore, afterScore }) => {
+  const delta = Number((beforeScore - afterScore).toFixed(4));
+  const percentageChange = beforeScore > 0 ? Number((((beforeScore - afterScore) / beforeScore) * 100).toFixed(2)) : 0;
+  return { delta, percentage_change: percentageChange };
+};
+
+const buildAutoFixCandidates = ({ beforeAnalysis, targetColumn, maxRemoveFeatureCandidates = 3 }) => {
+  const candidates = [
+    { fixType: "REWEIGHT", config: {}, rationale: "Reweight underrepresented sensitive groups" },
+    { fixType: "BALANCE", config: { method: "oversample" }, rationale: "Balance groups with deterministic oversampling" },
+    { fixType: "BALANCE", config: { method: "undersample" }, rationale: "Balance groups with deterministic undersampling" }
+  ];
+
+  const removableFeatures = (beforeAnalysis.flagged_features || [])
+    .map((item) => item.feature)
+    .filter((feature) => feature && feature !== targetColumn);
+  const seen = new Set();
+  removableFeatures.forEach((feature) => {
+    if (seen.has(feature)) return;
+    if (seen.size >= maxRemoveFeatureCandidates) return;
+    seen.add(feature);
+    candidates.push({
+      fixType: "REMOVE_FEATURE",
+      config: { feature },
+      rationale: `Remove potentially proxy feature '${feature}'`
+    });
+  });
+
+  return candidates;
+};
+
+const chooseBestAutoFix = (evaluations = []) => {
+  if (!evaluations.length) {
+    throw new AppError("No mitigation candidates available for auto-fix", 400);
+  }
+  const ranked = [...evaluations].sort((a, b) => {
+    if (b.improvement.delta !== a.improvement.delta) return b.improvement.delta - a.improvement.delta;
+    if (b.improvement.percentage_change !== a.improvement.percentage_change) {
+      return b.improvement.percentage_change - a.improvement.percentage_change;
+    }
+    return Number(a.afterScore || 0) - Number(b.afterScore || 0);
+  });
+  return { selected: ranked[0], ranked };
+};
+
 const persistMitigationRun = async (payload) => {
   if (mongoose.connection.readyState !== 1) {
     if (env.dbRequired) {
@@ -302,20 +363,14 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
   });
 
   const primarySensitiveAttr = choosePrimarySensitiveAttribute(sensitiveAttributes);
-  let mitigatedRows = cloneRows(originalRows);
-
-  if (fixType === "REWEIGHT") {
-    mitigatedRows = reweightRows(mitigatedRows, primarySensitiveAttr);
-  } else if (fixType === "REMOVE_FEATURE") {
-    mitigatedRows = removeFeature(mitigatedRows, config.feature, targetColumn, sensitiveAttributes);
-  } else {
-    const method = config.method === "undersample" ? "undersample" : "oversample";
-    mitigatedRows = balanceRows(mitigatedRows, primarySensitiveAttr, method);
-  }
-
-  if (!mitigatedRows.length) {
-    throw new AppError("Mitigation produced an empty dataset", 400);
-  }
+  const mitigatedRows = applyFixToRows({
+    rows: originalRows,
+    fixType,
+    config,
+    targetColumn,
+    sensitiveAttributes,
+    primarySensitiveAttr
+  });
 
   const afterColumns = Object.keys(mitigatedRows[0]);
   const afterAnalysis = analyzeBias({
@@ -328,9 +383,7 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
 
   const beforeScore = computeCompositeBiasScore(beforeAnalysis);
   const afterScore = computeCompositeBiasScore(afterAnalysis);
-  const delta = Number((beforeScore - afterScore).toFixed(4));
-  const percentageChange =
-    beforeScore > 0 ? Number((((beforeScore - afterScore) / beforeScore) * 100).toFixed(2)) : 0;
+  const { delta, percentage_change } = scoreMitigationDelta({ beforeScore, afterScore });
 
   const warning =
     delta < 0
@@ -367,7 +420,7 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
     },
     improvement: {
       delta,
-      percentage_change: percentageChange
+      percentage_change
     },
     applied_fix: appliedFix,
     fixed_dataset: fixedDataset,
@@ -385,6 +438,159 @@ const applyBiasFix = async ({ datasetId, fixType, config = {}, actorId = null })
     actorId,
     fixType,
     config,
+    result: response
+  });
+
+  return {
+    ...response,
+    persisted: {
+      model_audit_log_id: logId,
+      skipped: !logId
+    }
+  };
+};
+
+const autoFixBias = async ({ datasetId, config = {}, actorId = null }) => {
+  if (!datasetId) {
+    throw new AppError("datasetId is required", 400);
+  }
+  if (!actorId) {
+    throw new AppError("Authenticated user context is required", 401);
+  }
+
+  const datasetDoc = await Dataset.findOne({ _id: datasetId, ownerId: actorId }).lean();
+  if (!datasetDoc) {
+    throw new AppError("Dataset not found", 404);
+  }
+
+  const { targetColumn, sensitiveAttributes } = await parseAnalysisContext(datasetDoc);
+  const originalRows = await loadDatasetRows(datasetDoc);
+  const originalColumns = Object.keys(originalRows[0] || {});
+  const beforeAnalysis = analyzeBias({
+    dataset: originalRows,
+    columns: originalColumns,
+    targetColumn,
+    sensitiveAttributes,
+    positiveOutcome: config.positiveOutcome
+  });
+  const beforeScore = computeCompositeBiasScore(beforeAnalysis);
+  const primarySensitiveAttr = choosePrimarySensitiveAttribute(sensitiveAttributes);
+
+  const candidates = buildAutoFixCandidates({
+    beforeAnalysis,
+    targetColumn,
+    maxRemoveFeatureCandidates: env.autoFixMaxRemoveFeatureCandidates
+  });
+
+  const evaluations = [];
+  for (const candidate of candidates) {
+    try {
+      const rows = applyFixToRows({
+        rows: originalRows,
+        fixType: candidate.fixType,
+        config: candidate.config || {},
+        targetColumn,
+        sensitiveAttributes,
+        primarySensitiveAttr
+      });
+      const afterColumns = Object.keys(rows[0] || {});
+      const afterAnalysis = analyzeBias({
+        dataset: rows,
+        columns: afterColumns,
+        targetColumn,
+        sensitiveAttributes,
+        positiveOutcome: config.positiveOutcome
+      });
+      const afterScore = computeCompositeBiasScore(afterAnalysis);
+      const improvement = scoreMitigationDelta({ beforeScore, afterScore });
+      evaluations.push({
+        fixType: candidate.fixType,
+        config: candidate.config || {},
+        rationale: candidate.rationale,
+        mitigatedRows: rows,
+        afterAnalysis,
+        afterScore,
+        afterRiskLevel: getRiskLevel(afterScore),
+        improvement
+      });
+    } catch (error) {
+      // Invalid candidate should not break auto-fix. Skip and continue ranking.
+    }
+  }
+
+  const { selected, ranked } = chooseBestAutoFix(evaluations);
+  const warning =
+    selected.improvement.delta < 0
+      ? "Auto-fix selected the best available strategy, but it increased the composite bias score."
+      : selected.improvement.delta === 0
+        ? "Auto-fix selected the best available strategy, but no measurable improvement was achieved."
+        : null;
+
+  const appliedFix = {
+    type: selected.fixType,
+    description: buildFixDescription(selected.fixType, selected.config, primarySensitiveAttr)
+  };
+
+  const fixedDataset = await persistMitigatedDataset({
+    mitigatedRows: selected.mitigatedRows,
+    actorId,
+    sourceDataset: datasetDoc,
+    fixType: selected.fixType,
+    config: selected.config,
+    targetColumn,
+    sensitiveAttributes
+  });
+
+  const response = {
+    before: {
+      bias_score: beforeScore,
+      risk_level: getRiskLevel(beforeScore),
+      fairness_bias_score: beforeAnalysis.bias_score
+    },
+    after: {
+      bias_score: selected.afterScore,
+      risk_level: selected.afterRiskLevel,
+      fairness_bias_score: selected.afterAnalysis.bias_score
+    },
+    improvement: {
+      delta: selected.improvement.delta,
+      percentage_change: selected.improvement.percentage_change
+    },
+    applied_fix: appliedFix,
+    fixed_dataset: fixedDataset,
+    warning,
+    auto_fix: {
+      selected: {
+        fix_type: selected.fixType,
+        config: selected.config,
+        rationale: selected.rationale
+      },
+      candidates_ranked: ranked.map((item) => ({
+        fix_type: item.fixType,
+        config: item.config,
+        rationale: item.rationale,
+        after_bias_score: item.afterScore,
+        improvement_delta: item.improvement.delta,
+        improvement_percentage: item.improvement.percentage_change
+      }))
+    },
+    details: {
+      before_metrics: beforeAnalysis.bias_metrics,
+      after_metrics: selected.afterAnalysis.bias_metrics,
+      before_group_distributions: beforeAnalysis.group_distributions,
+      after_group_distributions: selected.afterAnalysis.group_distributions
+    }
+  };
+
+  const logId = await persistMitigationRun({
+    datasetId: String(datasetId),
+    actorId,
+    fixType: "AUTO",
+    config: {
+      ...config,
+      auto_selected_fix: selected.fixType,
+      auto_selected_config: selected.config
+    },
     result: response
   });
 
@@ -433,5 +639,11 @@ const getFixedDatasetDownload = async ({ datasetId, actorId }) => {
 
 module.exports = {
   applyBiasFix,
-  getFixedDatasetDownload
+  autoFixBias,
+  getFixedDatasetDownload,
+  __private: {
+    buildAutoFixCandidates,
+    chooseBestAutoFix,
+    scoreMitigationDelta
+  }
 };

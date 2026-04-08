@@ -22,6 +22,7 @@ This file lists the key app features, which Google technologies are used, and wh
 - **Use case**:
   - Store large uploaded datasets in object storage.
   - Keep metadata and analysis artifacts in MongoDB.
+  - Surface proxy/correlation insights via dedicated heatmap + flagged-feature table.
 
 ## 3) Bias Mitigation
 
@@ -31,6 +32,17 @@ This file lists the key app features, which Google technologies are used, and wh
   - Uses GCS-backed dataset retrieval when snapshot is not stored locally.
 - **Use case**:
   - Supports production storage model where raw rows are not always embedded in DB.
+  - Allows users to download the transformed fixed dataset for downstream use.
+
+### 3.1) Auto-Bias Correction Engine
+
+- **User feature**: Auto-select best mitigation strategy (`REWEIGHT`, `BALANCE`, `REMOVE_FEATURE`) by measured fairness improvement.
+- **Where in app**: `Datasets` page -> `Auto Fix (Best Strategy)`.
+- **Google technologies**:
+  - Uses GCS-backed dataset retrieval when snapshots are not stored locally (same as manual mitigation).
+- **Use case**:
+  - Reduces manual trial-and-error while keeping deterministic, auditable strategy selection.
+  - Returns ranked candidate strategies and selected rationale.
 
 ## 4) Model Fairness Evaluation
 
@@ -52,6 +64,8 @@ This file lists the key app features, which Google technologies are used, and wh
   - ML service deployed on **Cloud Run**.
 - **Use case**:
   - Fairness-aware decisioning for live inference workflows.
+  - Realtime audit always calls the Vertex ML-service path; mock is server-only fallback when `ML_ALLOW_MOCK_FALLBACK=true` and the ML service errors.
+  - Optional outcome/label key strips that column from the model request; counterfactual “label changed” reflects the model output class, not the JSON label.
 
 ## 6) Explainability (Dataset / Model / Realtime)
 
@@ -71,10 +85,11 @@ This file lists the key app features, which Google technologies are used, and wh
   - Gemini API via backend `geminiService`.
 - **Use case**:
   - Produce consistent report narratives from technical results.
+  - Export professional PDF reports directly from dataset/model/realtime pages.
 
 ## 8) Dashboard and Risk Monitoring
 
-- **User feature**: View overall bias score, risk level, most affected group, activity, and chart summaries.
+- **User feature**: View overall bias score, risk level, and chart summaries.
 - **Where in app**: `Dashboard` page.
 - **Google technologies**:
   - Indirect: surfaces data created by GCS-backed analyses and Gemini-enhanced outputs.
@@ -98,8 +113,8 @@ This file lists the key app features, which Google technologies are used, and wh
 - **Platform controls implemented**:
   - Rate limiting on auth, dataset, predict-with-audit, explain, report
   - JWT auth and route protection
-  - Fallback alert webhook for Gemini failures
   - Config validation in production mode
+  - Owner-scoped fixed dataset downloads and owner-scoped mitigation actions
 
 ---
 

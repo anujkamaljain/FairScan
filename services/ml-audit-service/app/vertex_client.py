@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import random
+import time
 from typing import Any
 
 import requests
@@ -55,7 +57,59 @@ class VertexClient:
         self.credentials.refresh(request)
         return self.credentials.token
 
-    def generate_content(self, prompt: str) -> dict[str, Any]:
+    def auth_headers(self) -> dict[str, str]:
+        token = self._access_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+    def post_json(
+        self,
+        endpoint: str,
+        payload: dict[str, Any],
+        timeout_seconds: float | None = None,
+        *,
+        retry_transient: bool = False,
+        max_retries: int = 6,
+    ) -> dict[str, Any]:
+        timeout = timeout_seconds if timeout_seconds is not None else 120.0
+        last_text = ""
+        for attempt in range(max_retries):
+            if attempt > 0:
+                try:
+                    self.credentials.refresh(Request())
+                except Exception:
+                    pass
+            response = requests.post(
+                endpoint,
+                headers=self.auth_headers(),
+                json=payload,
+                timeout=timeout,
+            )
+            if response.ok:
+                return response.json()
+            last_text = response.text or ""
+            code = response.status_code
+            retryable = code in (408, 429, 500, 502, 503, 504)
+            if retry_transient and retryable and attempt < max_retries - 1:
+                wait = min(32.0, (2**attempt) * 1.0 + random.uniform(0, 0.75))
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"Vertex request failed ({code}): {last_text[:4000]}")
+        raise RuntimeError(f"Vertex request failed: {last_text[:4000]}")
+
+    def get_json(self, endpoint: str, timeout_seconds: float | None = None) -> dict[str, Any]:
+        response = requests.get(
+            endpoint,
+            headers=self.auth_headers(),
+            timeout=timeout_seconds,
+        )
+        if not response.ok:
+            raise RuntimeError(f"Vertex request failed ({response.status_code}): {response.text}")
+        return response.json()
+
+    def generate_content(self, prompt: str, *, system_instruction: str | None = None) -> dict[str, Any]:
         if not self.settings.vertex_project_id:
             raise ValueError("VERTEX_AI_PROJECT_ID is required")
 
@@ -65,25 +119,18 @@ class VertexClient:
             f"publishers/google/models/{self.settings.gemini_model}:generateContent"
         )
 
-        payload = {
+        payload: dict[str, Any] = {
             "contents": [
                 {
                     "role": "user",
                     "parts": [{"text": prompt}],
                 }
-            ]
-        }
-        token = self._access_token()
-        response = requests.post(
-            endpoint,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
+            ],
+            "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 1024,
             },
-            json=payload,
-            timeout=self.settings.vertex_timeout_seconds,
-        )
-
-        if not response.ok:
-            raise RuntimeError(f"Vertex request failed ({response.status_code}): {response.text}")
-        return response.json()
+        }
+        if system_instruction and system_instruction.strip():
+            payload["systemInstruction"] = {"parts": [{"text": system_instruction.strip()}]}
+        return self.post_json(endpoint, payload, retry_transient=True, max_retries=6)

@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../utils/apiResponse");
-const { applyBiasFix, getFixedDatasetDownload } = require("../services/biasMitigationService");
+const { applyBiasFix, autoFixBias, getFixedDatasetDownload } = require("../services/biasMitigationService");
 
 const applyFix = async (req, res) => {
   const { datasetId, fixType, config = {} } = req.body || {};
@@ -10,6 +10,16 @@ const applyFix = async (req, res) => {
     actorId: req.user?.sub || req.user?.id || null
   });
   return sendSuccess(res, result, "Bias mitigation fix applied", 200);
+};
+
+const autoFix = async (req, res) => {
+  const { datasetId, config = {} } = req.body || {};
+  const result = await autoFixBias({
+    datasetId,
+    config,
+    actorId: req.user?.sub || req.user?.id || null
+  });
+  return sendSuccess(res, result, "Auto-bias correction completed", 200);
 };
 
 const downloadFixedDataset = async (req, res) => {
@@ -27,5 +37,6 @@ const downloadFixedDataset = async (req, res) => {
 
 module.exports = {
   applyFix,
+  autoFix,
   downloadFixedDataset
 };

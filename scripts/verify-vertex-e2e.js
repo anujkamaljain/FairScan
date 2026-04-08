@@ -48,8 +48,7 @@ const run = async () => {
     },
     body: JSON.stringify({
       inputData: { income: 72000, credit_score: 730, gender: "female", age_group: "26-35" },
-      sensitiveAttributes: ["gender", "age_group"],
-      modelConfig: { type: "vertex" }
+      sensitiveAttributes: ["gender", "age_group"]
     })
   });
 

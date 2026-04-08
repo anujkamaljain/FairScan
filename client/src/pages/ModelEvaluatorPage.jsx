@@ -14,6 +14,7 @@ import EmptyStateCard from '../components/common/EmptyStateCard'
 import InlineAlert from '../components/common/InlineAlert'
 import RiskBadge from '../components/common/RiskBadge'
 import apiFetch from '../lib/api'
+import { exportReportPdf } from '../lib/reportPdf'
 const workflowSteps = ['Upload', 'Evaluate', 'Explain', 'Compare']
 const pageCardClass =
   'card-scroll rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
@@ -73,6 +74,7 @@ function ModelEvaluatorPage() {
   const [report, setReport] = useState(null)
   const [isExplaining, setIsExplaining] = useState(false)
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
+  const [isExportingReport, setIsExportingReport] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
 
   const firstSensitiveAttr = useMemo(
@@ -268,6 +270,31 @@ function ModelEvaluatorPage() {
       setError(requestError.message)
     } finally {
       setIsGeneratingReport(false)
+    }
+  }
+
+  const exportReport = async () => {
+    if (!report) return
+    setError('')
+    setIsExportingReport(true)
+    try {
+      exportReportPdf({
+        report,
+        title: 'Model Fairness Report',
+        subtitle: 'Prediction-level fairness and risk analysis',
+        generatedFor: 'Model Evaluator',
+        meta: {
+          'Risk Level': result?.risk_level || 'UNKNOWN',
+          'Bias Score': Number(result?.bias_score || 0).toFixed(4),
+          'Overall Accuracy': Number(result?.accuracy_metrics?.overall_accuracy || 0).toFixed(4),
+          Samples: String(result?.summary?.total_samples || 0)
+        }
+      })
+      setSuccessMessage('Report exported as PDF.')
+    } catch (pdfError) {
+      setError(pdfError.message)
+    } finally {
+      setIsExportingReport(false)
     }
   }
 
@@ -501,6 +528,14 @@ function ModelEvaluatorPage() {
                 className={secondaryButtonClass}
               >
                 {isGeneratingReport ? 'Generating Report...' : 'Generate Report'}
+              </button>
+              <button
+                type="button"
+                onClick={exportReport}
+                disabled={!report || isExportingReport}
+                className={secondaryButtonClass}
+              >
+                {isExportingReport ? 'Exporting PDF...' : 'Export PDF'}
               </button>
             </div>
 

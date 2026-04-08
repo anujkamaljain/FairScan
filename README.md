@@ -105,6 +105,8 @@ Base URL: `/api/v1`
   - `POST /explain`
   - `POST /report`
   - `POST /bias/apply-fix`
+  - `POST /bias/auto-fix`
+  - `GET /bias/fixed-datasets/:datasetId/download`
   - `GET /dashboard/summary` (supports optional auth, richer response with auth)
 
 ## Dataset Upload Example

@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const envKeys = ["ML_ALLOW_MOCK_FALLBACK", "NODE_ENV", "ML_SERVICE_URL", "ML_SERVICE_TIMEOUT_MS"];
+const envKeys = ["ML_ALLOW_MOCK_FALLBACK", "NODE_ENV", "ML_SERVICE_URL"];
 
 const resetServiceModules = () => {
   delete require.cache[require.resolve("../src/config/env")];
@@ -30,12 +30,15 @@ test("vertex inference throws when fallback is disabled", async () => {
     {
       NODE_ENV: "development",
       ML_ALLOW_MOCK_FALLBACK: "false",
-      ML_SERVICE_URL: "http://localhost:9999",
-      ML_SERVICE_TIMEOUT_MS: "50"
+      ML_SERVICE_URL: "http://localhost:9999"
     },
     async () => {
       const originalFetch = global.fetch;
-      global.fetch = async () => ({ ok: false, status: 503, json: async () => ({}) });
+      global.fetch = async () => ({
+        ok: false,
+        status: 503,
+        text: async () => JSON.stringify({ detail: "Vertex inference failed" })
+      });
       try {
         const { predict } = require("../src/services/modelInferenceService");
         await assert.rejects(predict({ income: 50000 }, { type: "vertex" }), /temporarily unavailable/i);
@@ -51,12 +54,15 @@ test("vertex inference falls back to mock when enabled", async () => {
     {
       NODE_ENV: "development",
       ML_ALLOW_MOCK_FALLBACK: "true",
-      ML_SERVICE_URL: "http://localhost:9999",
-      ML_SERVICE_TIMEOUT_MS: "50"
+      ML_SERVICE_URL: "http://localhost:9999"
     },
     async () => {
       const originalFetch = global.fetch;
-      global.fetch = async () => ({ ok: false, status: 500, json: async () => ({}) });
+      global.fetch = async () => ({
+        ok: false,
+        status: 500,
+        text: async () => JSON.stringify({ detail: "upstream error" })
+      });
       try {
         const { predict } = require("../src/services/modelInferenceService");
         const result = await predict({ income: 50000 }, { type: "vertex" });

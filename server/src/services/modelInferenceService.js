@@ -46,23 +46,35 @@ const predictWithMockModel = (inputData) => {
 };
 
 const predictWithVertexModel = async (inputData, config) => {
-  const timeoutMs = Number(config.timeoutMs || env.mlServiceTimeoutMs || 4000);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const response = await fetch(`${env.mlServiceUrl}/predict`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inputData }),
-      signal: controller.signal
+      body: JSON.stringify({ inputData })
     });
 
+    const rawText = await response.text();
     if (!response.ok) {
-      throw new Error(`ML service error (${response.status})`);
+      let detail = rawText.slice(0, 1200);
+      try {
+        const errBody = JSON.parse(rawText);
+        if (typeof errBody?.detail === "string") {
+          detail = errBody.detail;
+        } else if (errBody?.detail != null) {
+          detail = JSON.stringify(errBody.detail);
+        }
+      } catch {
+        // keep text slice
+      }
+      throw new Error(`ML service error (${response.status}): ${detail}`);
     }
 
-    const payload = await response.json();
+    let payload;
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      throw new Error("ML service returned non-JSON body");
+    }
     const prediction = payload?.prediction;
     const confidence = Number(payload?.confidence);
     if (!prediction || !Number.isFinite(confidence)) {
@@ -88,13 +100,11 @@ const predictWithVertexModel = async (inputData, config) => {
       ...predictWithMockModel(inputData),
       model_type: "mock-fallback"
     };
-  } finally {
-    clearTimeout(timeout);
   }
 };
 
 const predict = async (inputData, config = {}) => {
-  const type = config.type || "mock";
+  const type = config.type || "vertex";
   if (!inputData || typeof inputData !== "object" || Array.isArray(inputData)) {
     throw new AppError("inputData must be a non-empty object", 400);
   }

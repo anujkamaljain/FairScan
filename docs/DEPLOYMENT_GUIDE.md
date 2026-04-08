@@ -79,7 +79,6 @@ Use `server/.env.example` as reference. Production values:
 - `NODE_ENV` -> **CHANGE** to `production`
 - `PORT` -> **DO NOT set manually** (Cloud Run injects this)
 - `MONGO_URI` -> **CHANGE** to MongoDB Atlas URI
-- `MONGO_TIMEOUT_MS` -> usually keep `3000`
 - `DB_REQUIRED` -> **SET** `true`
 - `JWT_SECRET` -> **CHANGE** to strong random secret
 - `JWT_EXPIRES_IN` -> keep `7d` (or your policy)
@@ -87,13 +86,12 @@ Use `server/.env.example` as reference. Production values:
   - Example: `https://fairscan.vercel.app,https://www.fairscan.ai`
 - `GEMINI_API_KEY` -> **SET** real key
 - `GEMINI_MODEL` -> keep `gemini-2.5-pro` unless you intentionally change
-- `GEMINI_TIMEOUT_MS` -> keep `12000` unless needed
-- `GEMINI_ALERT_WEBHOOK_URL` -> optional
+- `GEMINI_FALLBACK_MODEL` -> optional (e.g. `gemini-2.0-flash`); used when the primary model returns 503/overload after retries
 - `GOOGLE_OAUTH_CLIENT_ID` -> **SET** same Client ID used in frontend
 - `ML_SERVICE_URL` -> **CHANGE** to deployed ML Cloud Run URL
   - Example: `https://fairscan-ml-xxxx-uc.a.run.app`
-- `ML_SERVICE_TIMEOUT_MS` -> keep `4000` or increase if needed
 - `ML_ALLOW_MOCK_FALLBACK` -> **SET `false` in production**
+- `AUTO_FIX_MAX_REMOVE_FEATURE_CANDIDATES` -> keep `3` (or tune to control auto-fix search breadth)
 - `AUTH_RATE_LIMIT_WINDOW_MS` -> keep `60000`
 - `AUTH_RATE_LIMIT_MAX` -> keep `20` (or tighter)
 - `API_RATE_LIMIT_WINDOW_MS` -> keep `60000`
@@ -119,10 +117,11 @@ Set:
 
 - `VERTEX_AI_PROJECT_ID` -> your project id
 - `VERTEX_AI_LOCATION` -> usually `us-central1`
-- `GEMINI_MODEL` -> keep `gemini-2.5-pro`
+- `GEMINI_MODEL` -> `gemini-2.5-pro` is fine; if Vertex returns frequent 429/503 (capacity), try `gemini-2.0-flash` for `/predict` inference
 - `USE_VERTEX_INFERENCE` -> set `true` in production
-- `ALLOW_DETERMINISTIC_FALLBACK` -> set `false` in production
-- `VERTEX_TIMEOUT_SECONDS` -> keep `45` unless you need longer timeout
+- `ALLOW_DETERMINISTIC_FALLBACK` -> set `false` in production when every prediction must be model-backed; keep `true` in local dev so `/predict` stays usable when Vertex blips
+
+The ML service **retries** Vertex `generateContent` on transient HTTP errors (429, 503, etc.) with exponential backoff before failing or using deterministic fallback.
 
 Recommended on Cloud Run:
 
@@ -229,8 +228,16 @@ Manual checks:
 - Google OAuth login/logout
 - Upload dataset (stored in GCS + metadata in Mongo)
 - Bias mitigation works only for owner dataset
+- Auto-fix returns selected strategy and improvement summary
 - Dashboard shows only owner data
 - Realtime logs isolated per user
+- Outbound HTTP to Vertex uses no client-side read timeout (waits for the provider). Ensure platform request limits (e.g. Cloud Run max request duration) fit your longest calls.
+
+Additional sanity check (recommended):
+
+```bash
+curl -X POST https://<ml-url>/predict -H "Content-Type: application/json" -d "{\"inputData\":{\"income\":72000,\"credit_score\":730,\"tenure_years\":4}}"
+```
 
 Optional scripted isolation check from this repo:
 

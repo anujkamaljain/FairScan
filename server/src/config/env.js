@@ -33,7 +33,6 @@ const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 5000,
   mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/fairsight-ai",
-  mongoTimeoutMs: Number(process.env.MONGO_TIMEOUT_MS) || 3000,
   dbRequired:
     process.env.DB_REQUIRED === "true" || (!process.env.DB_REQUIRED && isProd),
   jwtSecret: process.env.JWT_SECRET || "replace-this-in-production",
@@ -41,9 +40,7 @@ const env = {
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-pro",
-  // Default 45s: 12s was too aggressive under load (Gemini often slower than Vertex REST timeout).
-  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS) || 45000,
-  geminiAlertWebhookUrl: process.env.GEMINI_ALERT_WEBHOOK_URL || "",
+  geminiFallbackModel: (process.env.GEMINI_FALLBACK_MODEL || "").trim(),
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || "",
   datasetStorageProvider,
   gcsProjectId: process.env.GCS_PROJECT_ID || "",
@@ -55,7 +52,7 @@ const env = {
   apiRateLimitWindowMs: Number(process.env.API_RATE_LIMIT_WINDOW_MS) || 60000,
   apiRateLimitMax: Number(process.env.API_RATE_LIMIT_MAX) || 120,
   mlServiceUrl: process.env.ML_SERVICE_URL || "http://localhost:8001",
-  mlServiceTimeoutMs: Number(process.env.ML_SERVICE_TIMEOUT_MS) || 4000,
+  autoFixMaxRemoveFeatureCandidates: Number(process.env.AUTO_FIX_MAX_REMOVE_FEATURE_CANDIDATES) || 3,
   mlAllowMockFallback:
     process.env.ML_ALLOW_MOCK_FALLBACK === undefined
       ? !isProd

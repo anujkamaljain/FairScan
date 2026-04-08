@@ -4,6 +4,7 @@ import EmptyStateCard from '../components/common/EmptyStateCard'
 import InlineAlert from '../components/common/InlineAlert'
 import RiskBadge from '../components/common/RiskBadge'
 import apiFetch from '../lib/api'
+import { exportReportPdf } from '../lib/reportPdf'
 const workflowSteps = ['Input', 'Predict', 'Bias', 'Explanation']
 const pageCardClass =
   'card-scroll rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
@@ -31,7 +32,7 @@ const defaultJsonInput = `{
 function RealtimeAuditPage() {
   const [jsonInput, setJsonInput] = useState(defaultJsonInput)
   const [sensitiveAttributesInput, setSensitiveAttributesInput] = useState('gender,age_group')
-  const [modelType, setModelType] = useState('mock')
+  const [outcomeFieldInput, setOutcomeFieldInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
@@ -40,6 +41,7 @@ function RealtimeAuditPage() {
   const [report, setReport] = useState(null)
   const [isExplaining, setIsExplaining] = useState(false)
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
+  const [isExportingReport, setIsExportingReport] = useState(false)
   const [logsLoading, setLogsLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -91,13 +93,14 @@ function RealtimeAuditPage() {
         throw new Error('Provide at least one sensitive attribute')
       }
 
+      const outcomeField = outcomeFieldInput.trim()
       const response = await apiFetch('/predict-with-audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           inputData,
           sensitiveAttributes,
-          modelConfig: { type: modelType }
+          ...(outcomeField ? { outcomeField } : {})
         })
       })
       const payload = await response.json()
@@ -160,6 +163,32 @@ function RealtimeAuditPage() {
     }
   }
 
+  const exportReport = async () => {
+    if (!report) return
+    setError('')
+    setIsExportingReport(true)
+    try {
+      exportReportPdf({
+        report,
+        title: 'Realtime Bias Audit Report',
+        subtitle: 'Single-decision fairness and counterfactual assessment',
+        generatedFor: 'Realtime Audit',
+        meta: {
+          'Prediction Label': String(result?.prediction?.label || 'N/A'),
+          'Prediction Score': Number(result?.prediction?.score || 0).toFixed(4),
+          'Bias Risk': String(result?.bias_risk || 'UNKNOWN'),
+          'Reason Code': String(result?.reason_code || 'NONE'),
+          ...(result?.outcome_field ? { 'Outcome field (excluded from model)': String(result.outcome_field) } : {})
+        }
+      })
+      setSuccessMessage('Report exported as PDF.')
+    } catch (pdfError) {
+      setError(pdfError.message)
+    } finally {
+      setIsExportingReport(false)
+    }
+  }
+
   return (
     <section className="space-y-8">
       <article className={pageCardClass}>
@@ -173,7 +202,8 @@ function RealtimeAuditPage() {
           </span>
         </div>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-          Run prediction and counterfactual sensitivity checks in a single API call.
+          Run prediction and counterfactual sensitivity checks in one request. Inference uses your ML service (Vertex path);
+          if the server has mock fallback enabled, transient ML errors fall back automatically.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {workflowSteps.map((step, idx) => (
@@ -201,8 +231,8 @@ function RealtimeAuditPage() {
             />
           </label>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="flex flex-col gap-2 text-sm md:col-span-2">
+          <div className="grid gap-5 md:grid-cols-2 md:items-start">
+            <label className="flex min-h-full flex-col gap-2 text-sm">
               <span className="font-medium text-gray-700 dark:text-gray-200">Sensitive attributes</span>
               <input
                 value={sensitiveAttributesInput}
@@ -212,16 +242,14 @@ function RealtimeAuditPage() {
               />
             </label>
 
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium text-gray-700 dark:text-gray-200">Model type</span>
-              <select
-                value={modelType}
-                onChange={(event) => setModelType(event.target.value)}
+            <label className="flex min-h-full flex-col gap-2 text-sm">
+              <span className="font-medium text-gray-700 dark:text-gray-200">Outcome / label field (optional)</span>
+              <input
+                value={outcomeFieldInput}
+                onChange={(event) => setOutcomeFieldInput(event.target.value)}
                 className={inputClass}
-              >
-                <option value="mock">mock</option>
-                <option value="vertex">vertex</option>
-              </select>
+                placeholder="e.g. approved — must match a key in JSON if set"
+              />
             </label>
           </div>
 
@@ -277,6 +305,12 @@ function RealtimeAuditPage() {
       {result && (
         <article className={subCardClass}>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Realtime Audit Result</h3>
+          {result.outcome_field ? (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Outcome column <span className="font-semibold text-gray-700 dark:text-gray-300">{result.outcome_field}</span>{' '}
+              was excluded from the model input (not sent to predict).
+            </p>
+          ) : null}
           <div className="mt-3 grid gap-4 md:grid-cols-3">
             <div className={tileCardClass}>
               <p className="text-xs text-gray-500 dark:text-gray-400">Prediction label</p>
@@ -307,7 +341,9 @@ function RealtimeAuditPage() {
                   <th className="px-2 py-2">Attribute</th>
                   <th className="px-2 py-2">Original</th>
                   <th className="px-2 py-2">Counterfactual</th>
-                  <th className="px-2 py-2">Label changed</th>
+                  <th className="px-2 py-2" title="Did the model's predicted class change after flipping this attribute?">
+                    Label changed (model)
+                  </th>
                   <th className="px-2 py-2">Delta score</th>
                 </tr>
               </thead>
@@ -326,6 +362,10 @@ function RealtimeAuditPage() {
                 ))}
               </tbody>
             </table>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              &quot;Label changed&quot; compares the model&apos;s output class for the base input vs each counterfactual
+              row (sensitive attribute flipped). It is not comparing your optional outcome column in JSON.
+            </p>
           </div>
         </article>
       )}
@@ -348,6 +388,14 @@ function RealtimeAuditPage() {
               className={secondaryButtonClass}
             >
               {isGeneratingReport ? 'Generating Report...' : 'Generate Report'}
+            </button>
+            <button
+              type="button"
+              onClick={exportReport}
+              disabled={!report || isExportingReport}
+              className={secondaryButtonClass}
+            >
+              {isExportingReport ? 'Exporting PDF...' : 'Export PDF'}
             </button>
           </div>
 

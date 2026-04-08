@@ -6,6 +6,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _optional_env(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
 @dataclass(frozen=True)
 class Settings:
     vertex_project_id: str
@@ -13,7 +21,6 @@ class Settings:
     gemini_model: str
     use_vertex_inference: bool
     allow_deterministic_fallback: bool
-    vertex_timeout_seconds: int
     google_cloud_project_id: str | None
     google_cloud_private_key_id: str | None
     google_cloud_private_key: str | None
@@ -31,10 +38,9 @@ def get_settings() -> Settings:
         allow_deterministic_fallback=(
             os.getenv("ALLOW_DETERMINISTIC_FALLBACK", "false" if is_prod else "true").strip().lower() == "true"
         ),
-        vertex_timeout_seconds=max(5, int(os.getenv("VERTEX_TIMEOUT_SECONDS", "45"))),
-        google_cloud_project_id=os.getenv("GOOGLE_CLOUD_PROJECT_ID"),
-        google_cloud_private_key_id=os.getenv("GOOGLE_CLOUD_PRIVATE_KEY_ID"),
-        google_cloud_private_key=os.getenv("GOOGLE_CLOUD_PRIVATE_KEY"),
-        google_cloud_client_email=os.getenv("GOOGLE_CLOUD_CLIENT_EMAIL"),
-        google_cloud_client_id=os.getenv("GOOGLE_CLOUD_CLIENT_ID"),
+        google_cloud_project_id=_optional_env("GOOGLE_CLOUD_PROJECT_ID"),
+        google_cloud_private_key_id=_optional_env("GOOGLE_CLOUD_PRIVATE_KEY_ID"),
+        google_cloud_private_key=_optional_env("GOOGLE_CLOUD_PRIVATE_KEY"),
+        google_cloud_client_email=_optional_env("GOOGLE_CLOUD_CLIENT_EMAIL"),
+        google_cloud_client_id=_optional_env("GOOGLE_CLOUD_CLIENT_ID"),
     )

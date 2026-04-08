@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import ActivityItem from '../components/common/ActivityItem'
 import EmptyStateCard from '../components/common/EmptyStateCard'
 import InlineAlert from '../components/common/InlineAlert'
 import MetricCard from '../components/common/MetricCard'
@@ -18,19 +17,14 @@ function ChartSkeleton() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-3">
-        {[1, 2, 3].map((item) => (
+      <div className="grid gap-6 md:grid-cols-2">
+        {[1, 2].map((item) => (
           <div key={item} className="h-36 animate-pulse rounded-2xl bg-gray-200/70 dark:bg-gray-800/70" />
         ))}
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         {[1, 2].map((item) => (
           <div key={item} className="h-96 animate-pulse rounded-2xl bg-gray-200/70 dark:bg-gray-800/70" />
-        ))}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        {[1, 2].map((item) => (
-          <div key={item} className="h-72 animate-pulse rounded-2xl bg-gray-200/70 dark:bg-gray-800/70" />
         ))}
       </div>
     </div>
@@ -89,16 +83,7 @@ function DashboardPage() {
   }, [summary])
 
   const hasAnyData =
-    (summary?.model_risk_summary || []).length > 0 ||
-    (summary?.dataset_risk_summary || []).length > 0 ||
-    (summary?.realtime_alerts || []).length > 0 ||
-    (summary?.recent_activity || []).length > 0
-
-  const formatMostImpactedGroup = (value) => {
-    if (!value) return 'Most impacted group: N/A'
-    if (value.toLowerCase().includes('most impacted group')) return value
-    return `Most impacted group: ${value}`
-  }
+    (summary?.model_risk_summary || []).length > 0 || (summary?.dataset_risk_summary || []).length > 0
 
   if (loading) {
     return <DashboardSkeleton />
@@ -120,7 +105,7 @@ function DashboardPage() {
         </InlineAlert>
       )}
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         <MetricCard
           label="Overall Bias Score"
           value={Number(summary?.overall_bias_score || 0).toFixed(4)}
@@ -131,12 +116,6 @@ function DashboardPage() {
             <RiskBadge level={summary?.overall_risk_level || 'LOW'} />
           </div>
         </SectionCard>
-        <MetricCard
-          label="Most Affected Group"
-          value={formatMostImpactedGroup(summary?.most_affected_group || 'N/A')}
-          subtext="Largest disparity observed in latest dataset report"
-          accent="rose"
-        />
       </div>
 
       {!hasAnyData && (
@@ -262,42 +241,6 @@ function DashboardPage() {
           )}
         </div>
       </SectionCard>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Recent Activity" description="Latest fairness and governance operations">
-          <div className="mt-6 space-y-3">
-            {(summary?.recent_activity || []).length ? (
-              summary.recent_activity.map((item) => (
-                <ActivityItem key={item.id} timestamp={item.timestamp} message={item.message} />
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No recent activity</p>
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Realtime Alerts" description="Counterfactual and confidence-shift triggers">
-          <div className="mt-6 space-y-3">
-            {(summary?.realtime_alerts || []).length ? (
-              summary.realtime_alerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="rounded-xl border border-gray-200/70 bg-gray-50 px-4 py-3 transition-all duration-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-950/60"
-                >
-                  <div className="flex items-center justify-between">
-                    <RiskBadge level={alert.risk_level} />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(alert.timestamp).toLocaleString()}</p>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">{alert.message}</p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Reason: {alert.reason_code}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No realtime alerts</p>
-            )}
-          </div>
-        </SectionCard>
-      </div>
     </section>
   )
 }

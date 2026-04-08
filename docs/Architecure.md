@@ -8,7 +8,7 @@ FairScan is a 3-tier system:
 
 - **Frontend (`client`)**: React + Vite single-page application
 - **Backend API (`server`)**: Node.js + Express + MongoDB
-- **ML microservice (`services/ml-audit-service`)**: FastAPI service for `/predict`
+- **ML microservice (`services/ml-audit-service`)**: FastAPI service for `/predict` and `/validate-model`
 
 Data and external services:
 
@@ -77,7 +77,7 @@ Major route groups:
 - `/api/v1/predict-with-audit`: realtime bias-aware prediction and logs
 - `/api/v1/explain`: explain dataset/model/realtime payloads
 - `/api/v1/report`: structured narrative report generation
-- `/api/v1/bias`: mitigation fix application
+- `/api/v1/bias`: mitigation fix application, auto-fix, fixed dataset download
 - `/api/v1/dashboard`: scoped summary for current user
 
 ---
@@ -116,6 +116,10 @@ Technical flow:
 5. Storage model:
    - If local storage: `dataSnapshot` stores rows
    - If GCS storage: file is uploaded to GCS; `dataSnapshot` is minimized
+6. Frontend visualizes:
+   - Group rate/distribution charts
+   - Flagged proxy feature table
+   - Feature correlation heatmap (flagged-feature pairs + numeric matrix fallback)
 
 Why this design:
 
@@ -129,6 +133,7 @@ Why this design:
 Feature goal:
 
 - Apply deterministic mitigation (`REWEIGHT`, `REMOVE_FEATURE`, `BALANCE`) and compare before-vs-after
+- Persist transformed fixed dataset and allow owner-scoped CSV download
 
 Technical flow:
 
@@ -139,6 +144,23 @@ Technical flow:
    - from GCS object (download + parse) when snapshot is not persisted
 4. Bias metrics computed before and after fix
 5. Improvement summary returned and mitigation log persisted
+
+### 6.1) Auto-Fix
+
+Feature goal:
+
+- Auto-select the best mitigation strategy from ranked candidates.
+
+Technical flow:
+
+1. Backend receives `datasetId` and optional config (for example `positiveOutcome`)
+2. Builds candidate strategies:
+   - `REWEIGHT`
+   - `BALANCE` (`oversample`, `undersample`)
+   - `REMOVE_FEATURE` for top proxy-risk features
+3. Runs candidate evaluations against fairness score deltas
+4. Selects best candidate and persists fixed dataset
+5. Returns before/after metrics and improvement summary
 
 Why this design:
 
@@ -178,8 +200,8 @@ Feature goal:
 
 Technical flow:
 
-1. Frontend sends `inputData`, `sensitiveAttributes`, and model config (`mock`/`vertex`)
-2. Backend performs inference via model inference service
+1. Frontend sends `inputData`, `sensitiveAttributes`, and optional `outcomeField` (label column key to strip from model input)
+2. Backend always uses the Vertex ML-service inference path; mock is used only when `ML_ALLOW_MOCK_FALLBACK=true` and the ML service errors (clients cannot select mock)
 3. Counterfactual bias checks compute risk/reason codes
 4. Audit event is queued and persisted to logs
 5. Frontend can fetch latest logs for current user
@@ -203,8 +225,8 @@ Technical flow:
 1. Explain/report endpoints accept payloads from dataset/model/realtime flows
 2. `explainabilityService` builds structured inputs and rule-based suggestions
 3. `geminiService` calls Gemini with strict JSON prompts
-4. Retry + timeout + fallback logic ensures graceful degradation
-5. Optional webhook alert can fire when Gemini fallback occurs
+4. Retry + fallback logic ensures graceful degradation (no app-enforced HTTP timeouts on Gemini calls)
+5. Frontend supports PDF export of generated report sections (dataset/model/realtime pages)
 
 Why this design:
 

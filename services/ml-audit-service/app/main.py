@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -13,6 +14,19 @@ from .vertex_client import VertexClient
 
 MAX_INPUT_KEYS = 100
 ALLOWED_LABELS = {"approved", "rejected"}
+
+# Vertex Gemini: system instruction for structured binary decisions (fairness audit inference path).
+VERTEX_PREDICTION_SYSTEM_INSTRUCTION = (
+    "You are a production-grade structured inference endpoint used inside an enterprise fairness and "
+    "model-risk testing platform (FairScan). "
+    "Your role is to emit a strictly valid machine-readable decision given a single JSON feature record. "
+    "Use formal, neutral, analytical discipline: no conversational filler, no markdown, no disclaimers outside JSON. "
+    "Never invent features, demographics, or outcomes not present in the supplied JSON. "
+    "Never output protected-class stereotypes or discriminatory rationale; base labels only on the provided fields. "
+    "If information is ambiguous or sparse, choose the label best supported by the inputs and express uncertainty "
+    "through a lower confidence score rather than prose. "
+    "You must comply exactly with the user message’s output contract (keys, allowed label strings, numeric range)."
+)
 
 app = FastAPI(
     title="FairScan ML Audit Service",
@@ -58,10 +72,21 @@ def _deterministic_prediction(input_data: dict[str, Any]) -> PredictResponse:
 
 
 def _extract_vertex_text(response: dict[str, Any]) -> str:
+    pf = response.get("promptFeedback") or {}
+    block = pf.get("blockReason")
+    if block:
+        raise ValueError(f"Vertex prompt blocked ({block}): {pf}")
+
     candidates = response.get("candidates") or []
     if not candidates:
-        raise ValueError("Vertex response has no candidates")
-    parts = ((candidates[0].get("content") or {}).get("parts")) or []
+        raise ValueError("Vertex returned no candidates (quota, safety filter, or empty model output)")
+
+    c0 = candidates[0]
+    fr = str(c0.get("finishReason") or "")
+    if fr in ("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII"):
+        raise ValueError(f"Vertex candidate unusable (finishReason={fr})")
+
+    parts = ((c0.get("content") or {}).get("parts")) or []
     if not parts:
         raise ValueError("Vertex response has no content parts")
     text = parts[0].get("text")
@@ -94,18 +119,35 @@ def _validated_prediction(prediction: Any, confidence: Any) -> PredictResponse:
 
 
 def _vertex_prediction(input_data: dict[str, Any]) -> PredictResponse:
-    prompt = (
-        "You are a strict prediction service. "
-        "Given the JSON inputData below, return only strict JSON with keys "
-        "'prediction' and 'confidence'. "
-        "prediction must be either 'approved' or 'rejected'. "
-        "confidence must be a float in [0,1]. No markdown.\n\n"
+    user_prompt = (
+        "## Task\n"
+        "Perform a binary eligibility-style assessment from the feature record below. "
+        "This interface is used for parity and counterfactual testing; outputs are parsed programmatically.\n\n"
+        "## Input contract\n"
+        "The object `inputData` is the complete feature payload. Do not assume keys or values that are not shown.\n\n"
+        "## Output contract (mandatory)\n"
+        "Return one JSON object and nothing else:\n"
+        '- "prediction": the lowercase string "approved" or "rejected"\n'
+        '- "confidence": a float in the closed interval [0, 1] quantifying certainty in that label given the inputs\n\n'
+        "## Quality bar\n"
+        "- Ground the decision solely in `inputData`; prefer conservative confidence when evidence is weak or conflicting.\n"
+        "- Do not include markdown fences, comments, or trailing text.\n\n"
         f"inputData:\n{json.dumps(input_data, sort_keys=True, default=str)}"
     )
-    response = vertex_client.generate_content(prompt)
-    text = _extract_vertex_text(response)
-    parsed = json.loads(_normalize_vertex_json_text(text))
-    return _validated_prediction(parsed.get("prediction"), parsed.get("confidence"))
+    for attempt in range(3):
+        try:
+            response = vertex_client.generate_content(
+                user_prompt,
+                system_instruction=VERTEX_PREDICTION_SYSTEM_INSTRUCTION,
+            )
+            text = _extract_vertex_text(response)
+            parsed = json.loads(_normalize_vertex_json_text(text))
+            return _validated_prediction(parsed.get("prediction"), parsed.get("confidence"))
+        except (json.JSONDecodeError, ValueError) as exc:
+            if attempt < 2:
+                time.sleep(min(6.0, 1.25 * (2**attempt)))
+                continue
+            raise exc
 
 
 def _predict_with_runtime_policy(input_data: dict[str, Any]) -> PredictResponse:

@@ -1,0 +1,383 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1100" font-family="'Segoe UI', Inter, system-ui, sans-serif">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="serverGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+    <linearGradient id="mlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444"/>
+      <stop offset="100%" style="stop-color:#dc2626"/>
+    </linearGradient>
+    <linearGradient id="extGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#94a3b8"/>
+      <stop offset="100%" style="stop-color:#64748b"/>
+    </linearGradient>
+
+    <!-- Drop Shadow -->
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Arrowhead -->
+    <marker id="arrowHead" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowHeadGreen" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowHeadAmber" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowHeadPurple" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arrowHeadRed" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="1100" fill="url(#bgGrad)" rx="16"/>
+
+  <!-- Title -->
+  <text x="700" y="52" text-anchor="middle" fill="#f8fafc" font-size="28" font-weight="700" letter-spacing="1">FairScan — System Architecture</text>
+  <text x="700" y="78" text-anchor="middle" fill="#94a3b8" font-size="14">Production-Grade AI Fairness Auditing Platform</text>
+
+  <!-- ─────────── TIER LABELS ─────────── -->
+  <text x="30" y="190" fill="#475569" font-size="12" font-weight="600" transform="rotate(-90 30 190)" letter-spacing="2">FRONTEND</text>
+  <text x="30" y="550" fill="#475569" font-size="12" font-weight="600" transform="rotate(-90 30 550)" letter-spacing="2">BACKEND API</text>
+  <text x="30" y="900" fill="#475569" font-size="12" font-weight="600" transform="rotate(-90 30 900)" letter-spacing="2">DATA &amp; ML</text>
+
+  <!-- Tier separator lines -->
+  <line x1="50" y1="340" x2="1360" y2="340" stroke="#334155" stroke-width="1" stroke-dasharray="8,4"/>
+  <line x1="50" y1="730" x2="1360" y2="730" stroke="#334155" stroke-width="1" stroke-dasharray="8,4"/>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- TIER 1: FRONTEND (client/)              -->
+  <!-- ═══════════════════════════════════════ -->
+
+  <!-- Main Client Box -->
+  <rect x="70" y="105" width="1260" height="220" rx="14" fill="#1e293b" stroke="#6366f1" stroke-width="1.5" filter="url(#shadow)" opacity="0.85"/>
+  <rect x="70" y="105" width="1260" height="36" rx="14" fill="url(#clientGrad)" opacity="0.15"/>
+  <text x="100" y="129" fill="#a5b4fc" font-size="14" font-weight="700">⬡  React + Vite + TailwindCSS + Recharts</text>
+  <text x="1290" y="129" text-anchor="end" fill="#64748b" font-size="11">client/src/</text>
+
+  <!-- Pages Row -->
+  <g transform="translate(100, 155)">
+    <rect width="155" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="78" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">Pages</text>
+    <text x="78" y="36" text-anchor="middle" fill="#818cf8" font-size="9">Landing • Login • Signup</text>
+    <text x="78" y="50" text-anchor="middle" fill="#818cf8" font-size="9">Dashboard • Datasets</text>
+  </g>
+  <g transform="translate(275, 155)">
+    <rect width="155" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="78" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">Pages (cont.)</text>
+    <text x="78" y="36" text-anchor="middle" fill="#818cf8" font-size="9">ModelEvaluator</text>
+    <text x="78" y="50" text-anchor="middle" fill="#818cf8" font-size="9">RealtimeAudit • Reports</text>
+  </g>
+  <g transform="translate(450, 155)">
+    <rect width="140" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="70" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">Context</text>
+    <text x="70" y="36" text-anchor="middle" fill="#818cf8" font-size="9">AuthContext (JWT)</text>
+    <text x="70" y="50" text-anchor="middle" fill="#818cf8" font-size="9">ThemeContext (Dark/Light)</text>
+  </g>
+  <g transform="translate(610, 155)">
+    <rect width="140" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="70" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">Components</text>
+    <text x="70" y="36" text-anchor="middle" fill="#818cf8" font-size="9">Auth • Navigation</text>
+    <text x="70" y="50" text-anchor="middle" fill="#818cf8" font-size="9">Dashboard • Common</text>
+  </g>
+  <g transform="translate(770, 155)">
+    <rect width="140" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="70" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">Layouts</text>
+    <text x="70" y="36" text-anchor="middle" fill="#818cf8" font-size="9">AppShell</text>
+    <text x="70" y="50" text-anchor="middle" fill="#818cf8" font-size="9">ProtectedRoute</text>
+  </g>
+  <g transform="translate(930, 155)">
+    <rect width="140" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="70" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">Lib / API</text>
+    <text x="70" y="36" text-anchor="middle" fill="#818cf8" font-size="9">api.js (Axios)</text>
+    <text x="70" y="50" text-anchor="middle" fill="#818cf8" font-size="9">Bearer Token auto-attach</text>
+  </g>
+
+  <!-- Router -->
+  <g transform="translate(1090, 155)">
+    <rect width="220" height="60" rx="8" fill="#312e81" stroke="#6366f1" stroke-width="1"/>
+    <text x="110" y="20" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="600">React Router</text>
+    <text x="110" y="36" text-anchor="middle" fill="#818cf8" font-size="9">Public: / • /login • /signup</text>
+    <text x="110" y="50" text-anchor="middle" fill="#818cf8" font-size="9">Protected: /dashboard • /datasets …</text>
+  </g>
+
+  <!-- Google OAuth on client side -->
+  <g transform="translate(100, 235)">
+    <rect width="160" height="40" rx="8" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1"/>
+    <text x="80" y="25" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">🔑  @react-oauth/google</text>
+  </g>
+
+  <!-- Recharts -->
+  <g transform="translate(280, 235)">
+    <rect width="120" height="40" rx="8" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1"/>
+    <text x="60" y="25" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">📊  Recharts</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Arrow: Frontend → Backend               -->
+  <!-- ═══════════════════════════════════════ -->
+  <line x1="700" y1="325" x2="700" y2="370" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrowHead)" opacity="0.8"/>
+  <text x="720" y="352" fill="#94a3b8" font-size="10">REST API  (JWT Bearer)</text>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- TIER 2: BACKEND API (server/)           -->
+  <!-- ═══════════════════════════════════════ -->
+
+  <rect x="70" y="375" width="1260" height="340" rx="14" fill="#1e293b" stroke="#10b981" stroke-width="1.5" filter="url(#shadow)" opacity="0.85"/>
+  <rect x="70" y="375" width="1260" height="36" rx="14" fill="url(#serverGrad)" opacity="0.15"/>
+  <text x="100" y="399" fill="#6ee7b7" font-size="14" font-weight="700">⬢  Node.js + Express + Mongoose</text>
+  <text x="1290" y="399" text-anchor="end" fill="#64748b" font-size="11">server/src/</text>
+
+  <!-- Middleware Row -->
+  <g transform="translate(100, 425)">
+    <rect width="1210" height="42" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1" opacity="0.6"/>
+    <text x="20" y="27" fill="#a7f3d0" font-size="11" font-weight="600">Middleware Pipeline:</text>
+    <text x="180" y="27" fill="#6ee7b7" font-size="10">Helmet  →  CORS  →  Morgan  →  Rate Limiter  →  JWT Auth  →  Multer (upload)  →  Error Handler</text>
+  </g>
+
+  <!-- Routes Row -->
+  <g transform="translate(100, 480)">
+    <text x="0" y="14" fill="#34d399" font-size="12" font-weight="600">Routes</text>
+  </g>
+  <g transform="translate(100, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/auth</text>
+  </g>
+  <g transform="translate(230, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/datasets</text>
+  </g>
+  <g transform="translate(360, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/model</text>
+  </g>
+  <g transform="translate(490, 500)">
+    <rect width="140" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="70" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/predict-with-audit</text>
+  </g>
+  <g transform="translate(640, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/explain</text>
+  </g>
+  <g transform="translate(770, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/report</text>
+  </g>
+  <g transform="translate(900, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/bias</text>
+  </g>
+  <g transform="translate(1030, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/dashboard</text>
+  </g>
+  <g transform="translate(1160, 500)">
+    <rect width="120" height="38" rx="6" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="60" y="24" text-anchor="middle" fill="#a7f3d0" font-size="9">/health</text>
+  </g>
+
+  <!-- Controllers Row -->
+  <g transform="translate(100, 555)">
+    <text x="0" y="14" fill="#34d399" font-size="12" font-weight="600">Controllers</text>
+  </g>
+  <g transform="translate(100, 575)">
+    <rect width="145" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="73" y="22" text-anchor="middle" fill="#86efac" font-size="9">authController</text>
+  </g>
+  <g transform="translate(255, 575)">
+    <rect width="145" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="73" y="22" text-anchor="middle" fill="#86efac" font-size="9">datasetController</text>
+  </g>
+  <g transform="translate(410, 575)">
+    <rect width="160" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="80" y="22" text-anchor="middle" fill="#86efac" font-size="9">modelFairnessController</text>
+  </g>
+  <g transform="translate(580, 575)">
+    <rect width="160" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="80" y="22" text-anchor="middle" fill="#86efac" font-size="9">predictAuditController</text>
+  </g>
+  <g transform="translate(750, 575)">
+    <rect width="145" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="73" y="22" text-anchor="middle" fill="#86efac" font-size="9">explainController</text>
+  </g>
+  <g transform="translate(905, 575)">
+    <rect width="145" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="73" y="22" text-anchor="middle" fill="#86efac" font-size="9">reportController</text>
+  </g>
+  <g transform="translate(1060, 575)">
+    <rect width="175" height="34" rx="6" fill="#0f3427" stroke="#047857" stroke-width="1"/>
+    <text x="88" y="22" text-anchor="middle" fill="#86efac" font-size="9">biasMitigation / dashboard</text>
+  </g>
+
+  <!-- Services Row -->
+  <g transform="translate(100, 625)">
+    <text x="0" y="14" fill="#34d399" font-size="12" font-weight="600">Services (Domain Logic)</text>
+  </g>
+  <g transform="translate(100, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">authService</text>
+  </g>
+  <g transform="translate(240, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">datasetIngestion</text>
+  </g>
+  <g transform="translate(380, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">biasAnalysis</text>
+  </g>
+  <g transform="translate(520, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">biasMitigation</text>
+  </g>
+  <g transform="translate(660, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">modelFairness</text>
+  </g>
+  <g transform="translate(800, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">realtimeBias</text>
+  </g>
+  <g transform="translate(940, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">explainability</text>
+  </g>
+  <g transform="translate(1080, 645)">
+    <rect width="130" height="34" rx="6" fill="#14332a" stroke="#047857" stroke-width="1"/>
+    <text x="65" y="22" text-anchor="middle" fill="#6ee7b7" font-size="8.5">geminiService</text>
+  </g>
+
+  <!-- Models label -->
+  <g transform="translate(100, 692)">
+    <text x="0" y="14" fill="#34d399" font-size="12" font-weight="600">Mongoose Models</text>
+    <text x="150" y="14" fill="#6ee7b7" font-size="10">User  •  Dataset  •  BiasReport  •  ModelAuditLog</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- TIER 3: DATA + ML                       -->
+  <!-- ═══════════════════════════════════════ -->
+
+  <!-- MongoDB -->
+  <g transform="translate(70, 760)">
+    <rect width="310" height="130" rx="14" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" filter="url(#shadow)" opacity="0.85"/>
+    <rect width="310" height="32" rx="14" fill="url(#dbGrad)" opacity="0.15"/>
+    <text x="25" y="23" fill="#fca5a5" font-size="13" font-weight="700">🗄  MongoDB</text>
+    <text x="25" y="55" fill="#f87171" font-size="10">Collections:</text>
+    <text x="25" y="72" fill="#fca5a5" font-size="9">• users  (credentials, OAuth profiles)</text>
+    <text x="25" y="87" fill="#fca5a5" font-size="9">• datasets  (metadata, dataSnapshot, fileStorage)</text>
+    <text x="25" y="102" fill="#fca5a5" font-size="9">• biasreports  (metrics, group distributions)</text>
+    <text x="25" y="117" fill="#fca5a5" font-size="9">• modelauditlogs  (eval results, actor context)</text>
+  </g>
+
+  <!-- GCS -->
+  <g transform="translate(420, 760)">
+    <rect width="250" height="130" rx="14" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" opacity="0.85"/>
+    <rect width="250" height="32" rx="14" fill="#1e3a5f" opacity="0.5"/>
+    <text x="25" y="23" fill="#93c5fd" font-size="13" font-weight="700">☁  Google Cloud Storage</text>
+    <text x="25" y="55" fill="#60a5fa" font-size="10">Dataset File Storage (when GCS mode)</text>
+    <text x="25" y="75" fill="#93c5fd" font-size="9">• Upload CSV/JSON → GCS bucket</text>
+    <text x="25" y="92" fill="#93c5fd" font-size="9">• Download for mitigation re-analysis</text>
+    <text x="25" y="109" fill="#93c5fd" font-size="9">• gcsStorageService.js</text>
+  </g>
+
+  <!-- ML Microservice -->
+  <g transform="translate(710, 760)">
+    <rect width="310" height="130" rx="14" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)" opacity="0.85"/>
+    <rect width="310" height="32" rx="14" fill="url(#mlGrad)" opacity="0.15"/>
+    <text x="25" y="23" fill="#fcd34d" font-size="13" font-weight="700">🤖  ML Audit Service (FastAPI)</text>
+    <text x="270" y="23" fill="#64748b" font-size="9">Python</text>
+    <text x="25" y="55" fill="#fbbf24" font-size="10">services/ml-audit-service/app/</text>
+    <text x="25" y="75" fill="#fcd34d" font-size="9">• main.py  — /predict, /health, /validate-model</text>
+    <text x="25" y="92" fill="#fcd34d" font-size="9">• vertex_client.py  — Vertex AI inference</text>
+    <text x="25" y="109" fill="#fcd34d" font-size="9">• Deterministic fallback (configurable)</text>
+  </g>
+
+  <!-- External Services -->
+  <g transform="translate(1060, 760)">
+    <rect width="270" height="130" rx="14" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5" filter="url(#shadow)" opacity="0.85"/>
+    <rect width="270" height="32" rx="14" fill="url(#extGrad)" opacity="0.15"/>
+    <text x="25" y="23" fill="#c4b5fd" font-size="13" font-weight="700">🔌  External APIs</text>
+    <text x="25" y="55" fill="#a78bfa" font-size="10">Gemini API</text>
+    <text x="25" y="72" fill="#c4b5fd" font-size="9">• Explainability narrative generation</text>
+    <text x="25" y="87" fill="#c4b5fd" font-size="9">• Report generation (structured JSON)</text>
+    <text x="25" y="104" fill="#a78bfa" font-size="10">Google OAuth</text>
+    <text x="25" y="119" fill="#c4b5fd" font-size="9">• ID token verification</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Connection Arrows (Backend ↔ Data/ML)   -->
+  <!-- ═══════════════════════════════════════ -->
+
+  <!-- Backend → MongoDB -->
+  <line x1="250" y1="715" x2="225" y2="755" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowHeadRed)" opacity="0.7"/>
+  <text x="195" y="740" fill="#fca5a5" font-size="9">Mongoose</text>
+
+  <!-- Backend → GCS -->
+  <line x1="500" y1="715" x2="530" y2="755" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.7"/>
+
+  <!-- Backend → ML Service -->
+  <line x1="800" y1="715" x2="850" y2="755" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowHeadAmber)" opacity="0.7"/>
+  <text x="830" y="740" fill="#fcd34d" font-size="9">HTTP /predict</text>
+
+  <!-- Backend → External APIs -->
+  <line x1="1100" y1="715" x2="1180" y2="755" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrowHeadPurple)" opacity="0.7"/>
+  <text x="1115" y="740" fill="#c4b5fd" font-size="9">Gemini / OAuth</text>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Deployment Annotation                   -->
+  <!-- ═══════════════════════════════════════ -->
+  <g transform="translate(70, 930)">
+    <rect width="1260" height="80" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1" opacity="0.7"/>
+    <text x="25" y="25" fill="#64748b" font-size="12" font-weight="700">Recommended Deployment</text>
+    <text x="25" y="48" fill="#94a3b8" font-size="10">Frontend → Vercel</text>
+    <text x="230" y="48" fill="#94a3b8" font-size="10">Backend API → Cloud Run</text>
+    <text x="500" y="48" fill="#94a3b8" font-size="10">ML Service → Cloud Run</text>
+    <text x="750" y="48" fill="#94a3b8" font-size="10">Database → MongoDB Atlas</text>
+    <text x="1020" y="48" fill="#94a3b8" font-size="10">Storage → GCS Bucket</text>
+    <text x="25" y="68" fill="#475569" font-size="9">VITE_API_BASE_URL → Backend URL  •  ML_SERVICE_URL → ML Service URL  •  CORS_ORIGIN → Vercel Domain(s)</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(70, 1040)">
+    <rect width="1260" height="40" rx="10" fill="none" stroke="#334155" stroke-width="1" opacity="0.5"/>
+    <circle cx="30" cy="20" r="6" fill="#6366f1"/>
+    <text x="45" y="24" fill="#94a3b8" font-size="10">Frontend</text>
+    <circle cx="140" cy="20" r="6" fill="#10b981"/>
+    <text x="155" y="24" fill="#94a3b8" font-size="10">Backend API</text>
+    <circle cx="270" cy="20" r="6" fill="#ef4444"/>
+    <text x="285" y="24" fill="#94a3b8" font-size="10">MongoDB</text>
+    <circle cx="370" cy="20" r="6" fill="#3b82f6"/>
+    <text x="385" y="24" fill="#94a3b8" font-size="10">GCS</text>
+    <circle cx="440" cy="20" r="6" fill="#f59e0b"/>
+    <text x="455" y="24" fill="#94a3b8" font-size="10">ML Service</text>
+    <circle cx="560" cy="20" r="6" fill="#8b5cf6"/>
+    <text x="575" y="24" fill="#94a3b8" font-size="10">External APIs</text>
+  </g>
+</svg>

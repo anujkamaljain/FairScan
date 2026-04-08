@@ -112,10 +112,12 @@ Expected:
 ### 3.3 Generate report
 
 1. Click generate report
+2. Click `Export PDF` (optional)
 
 Expected:
 
 - Overview/findings/risk/recommendations sections appear
+- Downloaded PDF opens with the same report sections
 
 ### 3.4 Apply mitigation
 
@@ -128,6 +130,18 @@ Expected:
 - Before/after bias comparison appears
 - Improvement values visible
 - Persisted mitigation log is generated
+- Fixed dataset download button is available
+
+### 3.5 Auto-fix mode (best strategy)
+
+1. Click `Auto Fix (Best Strategy)`
+2. Review selected fix type and ranked candidate summary
+
+Expected:
+
+- Best candidate mitigation is auto-selected and applied
+- Before/after scores + improvement are returned
+- Fixed dataset is downloadable
 
 ---
 
@@ -147,10 +161,12 @@ Then test:
 
 5. Generate explanation
 6. Generate report
+7. Export report PDF
 
 Expected:
 
 - Explanation/report generated without breaking the page
+- PDF export succeeds with report sections
 
 ---
 
@@ -159,8 +175,8 @@ Expected:
 1. Open `/realtime-audit`
 2. Provide JSON input
 3. Provide sensitive attributes
-4. Select model type (`mock` or `vertex`)
-5. Run prediction with audit
+4. Optionally set outcome/label field name if that column exists in the JSON (it is excluded from the model request)
+5. Run prediction with audit (inference uses Vertex; server may fall back to mock when configured)
 
 Expected:
 
@@ -168,15 +184,17 @@ Expected:
 - Bias risk and reason code shown
 - Realtime explanation shown
 - New log entry appears in recent logs
-- For strict production profile, use `vertex` and verify no deterministic fallback is active
+- For strict production profile, verify ML service health and that deterministic mock fallback is disabled where required (`ML_ALLOW_MOCK_FALLBACK=false`)
 
 Then:
 
 6. Generate report from realtime result
+7. Export report PDF
 
 Expected:
 
 - Realtime report sections generated
+- PDF export works from realtime flow
 
 ---
 
@@ -189,6 +207,7 @@ Expected:
 - Summaries from dataset/model analyses are listed
 - Risk badges and concise summaries visible
 - No unrelated user data is shown
+- Full report sections are generated per flow (dataset/model/realtime) and exportable as PDF from those flow pages
 
 ---
 
@@ -251,9 +270,11 @@ Mark complete only if all are true:
 - [ ] Auth (email + Google) works
 - [ ] Dataset analysis works
 - [ ] Mitigation works
+- [ ] Auto-fix works
 - [ ] Model evaluator works
 - [ ] Realtime audit works
 - [ ] Explanations/reports work
+- [ ] PDF export works for dataset/model/realtime reports
 - [ ] Dashboard and reports render correctly
 - [ ] Cross-user isolation is confirmed
 - [ ] Build/test scripts pass

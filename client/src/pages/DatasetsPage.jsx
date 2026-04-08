@@ -13,6 +13,7 @@ import EmptyStateCard from '../components/common/EmptyStateCard'
 import InlineAlert from '../components/common/InlineAlert'
 import RiskBadge from '../components/common/RiskBadge'
 import apiFetch from '../lib/api'
+import { exportReportPdf } from '../lib/reportPdf'
 const workflowSteps = ['Upload', 'Analyze', 'Explain', 'Apply Fix', 'Compare']
 const pageCardClass =
   'card-scroll rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900'
@@ -28,6 +29,7 @@ const secondaryButtonClass =
   'rounded-xl border border-indigo-400 px-4 py-2 text-sm font-medium text-indigo-600 transition-all duration-200 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-500 dark:text-indigo-300 dark:hover:bg-gray-800'
 const errorClass =
   'mt-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-300'
+const heatmapBucket = ['Low', 'Medium', 'High']
 
 function DatasetsPage() {
   const [file, setFile] = useState(null)
@@ -41,10 +43,12 @@ function DatasetsPage() {
   const [report, setReport] = useState(null)
   const [isExplaining, setIsExplaining] = useState(false)
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
+  const [isExportingReport, setIsExportingReport] = useState(false)
   const [fixType, setFixType] = useState('REWEIGHT')
   const [fixFeature, setFixFeature] = useState('')
   const [fixMethod, setFixMethod] = useState('oversample')
   const [isApplyingFix, setIsApplyingFix] = useState(false)
+  const [isAutoApplyingFix, setIsAutoApplyingFix] = useState(false)
   const [isDownloadingFixedDataset, setIsDownloadingFixedDataset] = useState(false)
   const [fixResult, setFixResult] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -81,6 +85,90 @@ function DatasetsPage() {
       negative: stats.negative ?? 0
     }))
   }, [result, selectedSensitiveAttr])
+
+  const featureCorrelationHeatmap = useMemo(() => {
+    if (!result) {
+      return { features: [], sensitive: [], values: {}, source: 'none' }
+    }
+
+    const values = {}
+    const featureSet = new Set()
+    const sensitiveSet = new Set()
+    const keyFor = (feature, sensitiveAttr) => `${feature}::${sensitiveAttr}`
+
+    ;(result.flagged_features || []).forEach((entry) => {
+      const feature = String(entry?.feature || '').trim()
+      const sensitiveAttr = String(entry?.sensitive_attribute || '').trim()
+      const correlation = Number(entry?.correlation)
+      if (!feature || !sensitiveAttr || !Number.isFinite(correlation)) return
+
+      featureSet.add(feature)
+      sensitiveSet.add(sensitiveAttr)
+      const key = keyFor(feature, sensitiveAttr)
+      values[key] = Math.max(values[key] || 0, Number(Math.abs(correlation).toFixed(4)))
+    })
+
+    let source = 'flagged_features'
+
+    // If flagged pairs are sparse/none, backfill from numeric correlation matrix.
+    if (!featureSet.size || !sensitiveSet.size) {
+      const matrix = result.bias_metrics?.numeric_correlation_matrix || {}
+      const matrixColumns = Object.keys(matrix)
+      const numericSensitive = sensitiveKeys.filter((attr) => matrixColumns.includes(attr))
+
+      numericSensitive.forEach((sensitiveAttr) => {
+        sensitiveSet.add(sensitiveAttr)
+        matrixColumns.forEach((feature) => {
+          if (feature === sensitiveAttr || feature === targetColumn) return
+          const direct = Number(matrix?.[feature]?.[sensitiveAttr])
+          const reverse = Number(matrix?.[sensitiveAttr]?.[feature])
+          const raw = Number.isFinite(direct) ? direct : reverse
+          if (!Number.isFinite(raw)) return
+          featureSet.add(feature)
+          values[keyFor(feature, sensitiveAttr)] = Number(Math.abs(raw).toFixed(4))
+        })
+      })
+
+      if (featureSet.size && sensitiveSet.size) {
+        source = 'numeric_correlation_matrix'
+      }
+    }
+
+    const sensitive = [...sensitiveSet]
+    const maxForFeature = (feature) =>
+      sensitive.reduce((max, sensitiveAttr) => {
+        const value = values[keyFor(feature, sensitiveAttr)] || 0
+        return Math.max(max, value)
+      }, 0)
+
+    const features = [...featureSet].sort((a, b) => maxForFeature(b) - maxForFeature(a))
+
+    return { features, sensitive, values, source }
+  }, [result, sensitiveKeys, targetColumn])
+
+  const heatCell = (value) => {
+    if (!Number.isFinite(value)) {
+      return {
+        className:
+          'rounded-md border border-dashed border-gray-200 bg-gray-50 px-2 py-2 text-center text-xs text-gray-400 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-500',
+        style: {},
+        text: '—'
+      }
+    }
+
+    const clamped = Math.max(0, Math.min(1, value))
+    const style = {
+      backgroundColor: `rgba(99, 102, 241, ${0.1 + clamped * 0.62})`,
+      borderColor: `rgba(99, 102, 241, ${0.25 + clamped * 0.5})`
+    }
+    return {
+      className: `rounded-md border px-2 py-2 text-center text-xs font-semibold ${
+        clamped >= 0.5 ? 'text-white' : 'text-gray-800 dark:text-gray-100'
+      }`,
+      style,
+      text: value.toFixed(3)
+    }
+  }
 
   const onSubmit = async (event) => {
     event.preventDefault()
@@ -177,6 +265,31 @@ function DatasetsPage() {
     }
   }
 
+  const exportReport = async () => {
+    if (!report) return
+    setError('')
+    setIsExportingReport(true)
+    try {
+      exportReportPdf({
+        report,
+        title: 'Dataset Bias Report',
+        subtitle: 'Fairness analysis summary for uploaded dataset',
+        generatedFor: 'Dataset Analyzer',
+        meta: {
+          'Risk Level': result?.risk_level || 'UNKNOWN',
+          'Bias Score': Number(result?.bias_score || 0).toFixed(4),
+          Rows: String(result?.dataset_summary?.rows || 0),
+          Columns: String(result?.dataset_summary?.columns || 0)
+        }
+      })
+      setSuccessMessage('Report exported as PDF.')
+    } catch (pdfError) {
+      setError(pdfError.message)
+    } finally {
+      setIsExportingReport(false)
+    }
+  }
+
   const applyFix = async () => {
     const datasetId = result?.persisted?.dataset_id
     if (!datasetId) {
@@ -217,6 +330,40 @@ function DatasetsPage() {
       setError(requestError.message)
     } finally {
       setIsApplyingFix(false)
+    }
+  }
+
+  const autoApplyFix = async () => {
+    const datasetId = result?.persisted?.dataset_id
+    if (!datasetId) {
+      setError('Dataset ID unavailable. Re-run analysis before applying auto-fix.')
+      return
+    }
+
+    setIsAutoApplyingFix(true)
+    setError('')
+    try {
+      const response = await apiFetch('/bias/auto-fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          datasetId,
+          config: {
+            positiveOutcome: positiveOutcome.trim() || undefined
+          }
+        })
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to auto-apply fix')
+      }
+      setFixResult(payload.data)
+      const selectedFix = payload.data?.auto_fix?.selected?.fix_type || payload.data?.applied_fix?.type || 'AUTO'
+      setSuccessMessage(`Auto-fix selected ${selectedFix} and completed mitigation analysis.`)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsAutoApplyingFix(false)
     }
   }
 
@@ -468,6 +615,80 @@ function DatasetsPage() {
           </div>
 
           <article className={subCardClass}>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Feature Correlation Heatmap</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Absolute association strength between dataset features and sensitive attributes.
+              {featureCorrelationHeatmap.source === 'numeric_correlation_matrix'
+                ? ' Showing numeric fallback matrix because no high-risk proxy pairs were flagged.'
+                : ''}
+            </p>
+
+            {featureCorrelationHeatmap.features.length && featureCorrelationHeatmap.sensitive.length ? (
+              <>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                  {heatmapBucket.map((label, index) => {
+                    const alpha = 0.18 + index * 0.22
+                    return (
+                      <span key={label} className="inline-flex items-center gap-1">
+                        <span
+                          className="inline-block h-3 w-6 rounded border"
+                          style={{
+                            backgroundColor: `rgba(99, 102, 241, ${alpha})`,
+                            borderColor: `rgba(99, 102, 241, ${Math.min(0.85, alpha + 0.2)})`
+                          }}
+                        />
+                        {label}
+                      </span>
+                    )
+                  })}
+                </div>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full border-separate border-spacing-2 text-left text-sm text-gray-700 dark:text-gray-200">
+                    <thead>
+                      <tr>
+                        <th className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Feature
+                        </th>
+                        {featureCorrelationHeatmap.sensitive.map((sensitiveAttr) => (
+                          <th
+                            key={`heat-head-${sensitiveAttr}`}
+                            className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                          >
+                            {sensitiveAttr}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {featureCorrelationHeatmap.features.map((feature) => (
+                        <tr key={`heat-row-${feature}`}>
+                          <td className="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300">{feature}</td>
+                          {featureCorrelationHeatmap.sensitive.map((sensitiveAttr) => {
+                            const value =
+                              featureCorrelationHeatmap.values[`${feature}::${sensitiveAttr}`]
+                            const cell = heatCell(value)
+                            return (
+                              <td key={`heat-cell-${feature}-${sensitiveAttr}`} className="align-middle">
+                                <div className={cell.className} style={cell.style}>
+                                  {cell.text}
+                                </div>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                No correlation matrix could be generated for the selected dataset and attributes.
+              </p>
+            )}
+          </article>
+
+          <article className={subCardClass}>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Flagged Proxy Features</h3>
             {result.flagged_features?.length ? (
               <div className="mt-4 overflow-x-auto">
@@ -554,6 +775,17 @@ function DatasetsPage() {
               {isApplyingFix ? 'Applying Fix...' : 'Apply Fix'}
             </button>
 
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={autoApplyFix}
+                disabled={isAutoApplyingFix}
+                className={secondaryButtonClass}
+              >
+                {isAutoApplyingFix ? 'Running Auto-Fix...' : 'Auto Fix (Best Strategy)'}
+              </button>
+            </div>
+
             {fixResult && (
               <div className="mt-5 space-y-4">
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
@@ -578,6 +810,12 @@ function DatasetsPage() {
                     <RiskBadge level={fixEffectiveness} />
                   </div>
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{fixResult.applied_fix?.description}</p>
+                  {fixResult.auto_fix?.selected && (
+                    <div className="mt-3 rounded-md border border-indigo-200/60 bg-indigo-50/60 px-3 py-2 text-xs text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-950/30 dark:text-indigo-200">
+                      Auto-fix selected <span className="font-semibold">{fixResult.auto_fix.selected.fix_type}</span>
+                      {fixResult.auto_fix.selected.rationale ? ` — ${fixResult.auto_fix.selected.rationale}` : ''}
+                    </div>
+                  )}
                   {fixResult.fixed_dataset?.id && (
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       <button
@@ -647,6 +885,14 @@ function DatasetsPage() {
                 className={secondaryButtonClass}
               >
                 {isGeneratingReport ? 'Generating Report...' : 'Generate Report'}
+              </button>
+              <button
+                type="button"
+                onClick={exportReport}
+                disabled={!report || isExportingReport}
+                className={secondaryButtonClass}
+              >
+                {isExportingReport ? 'Exporting PDF...' : 'Export PDF'}
               </button>
             </div>
 
